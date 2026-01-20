@@ -1,8 +1,10 @@
 {
   "system": "UESRPG 3e",
   "name": "Cassius Andromi",
+  "size": "",
+  "xp": { "current": 0, "total": 0 },
   "race": "Imperial",
-  "concept": "Civilized, mobile fighter",
+  "elite_adv": "",
   "favored_characteristics": ["Strength", "Agility"],
   "birthsign": {
     "category": "The Warrior",
@@ -13,59 +15,117 @@
       { "type": "Initiative Rating", "value": "+1" }
     ]
   },
-  "characteristics": [
-    { "name": "Strength", "score": 51, "bonus": 5, "favored": true },
-    { "name": "Endurance", "score": 53, "bonus": 5, "favored": false },
-    { "name": "Agility", "score": 54, "bonus": 5, "favored": true },
-    { "name": "Intelligence", "score": 50, "bonus": 5, "favored": false },
-    { "name": "Willpower", "score": 49, "bonus": 4, "favored": false },
-    { "name": "Perception", "score": 52, "bonus": 5, "favored": false },
-    { "name": "Personality", "score": 60, "bonus": 6, "favored": false },
-    { "name": "Luck", "score": 48, "bonus": 4, "favored": false }
-  ],
-  "derived_stats": {
-    "hp_max": 26,
-    "sp_max": 5,
-    "mp_max": 50,
-    "ap_max": 3,
-    "speed_m": 16,
-    "initiative_rating": 16,
-    "carry_rating": 30,
-    "linguistics": 3,
-    "luck_points_per_session": 4
-  },
   "luck_numbers": {
     "lucky": [19, 42, 68, 91],
     "unlucky": [7]
   },
+  "characteristics": [
+    { "abbr": "Str", "name": "Strength", "score": 51, "bonus": 5, "favored": true },
+    { "abbr": "End", "name": "Endurance", "score": 53, "bonus": 5, "favored": false },
+    { "abbr": "Ag", "name": "Agility", "score": 54, "bonus": 5, "favored": true },
+    { "abbr": "Int", "name": "Intelligence", "score": 50, "bonus": 5, "favored": false },
+    { "abbr": "Wp", "name": "Willpower", "score": 49, "bonus": 4, "favored": false },
+    { "abbr": "Prc", "name": "Perception", "score": 52, "bonus": 5, "favored": false },
+    { "abbr": "Prs", "name": "Personality", "score": 60, "bonus": 6, "favored": false },
+    { "abbr": "Lck", "name": "Luck", "score": 48, "bonus": 4, "favored": false }
+  ],
+  "base_bonuses": {
+    "SB": 5,
+    "EB": 5,
+    "AB": 5,
+    "IB": 5,
+    "WB": 4,
+    "PcB": 5,
+    "PsB": 6,
+    "LB": 4
+  },
+  "derived_stats": {
+    "HP": { "current": 26, "max": 26 },
+    "MP": { "current": 50, "max": 50 },
+    "WT": { "current": 0, "max": 0 },
+    "SP": { "current": 5, "max": 5 },
+    "Speed_m": 16,
+    "LP": { "current": 4, "max": 4 },
+    "IR": 16,
+    "AP": { "current": 3, "max": 3 },
+    "Linguistics": 3,
+    "ENC": { "current": 0, "max": 30 },
+    "CR": 30
+  },
+  "languages": [],
+  "bonds": [],
+  "armor": {
+    "slots": {
+      "head_0": { "label": "Head (0)", "AR": 0, "ENC": 0, "Type": "" },
+      "body_1_5": { "label": "Body (1-5)", "AR": 0, "ENC": 0, "Type": "Medium armor (placeholder)" },
+      "right_leg_6": { "label": "Right Leg (6)", "AR": 0, "ENC": 0, "Type": "" },
+      "left_leg_7": { "label": "Left Leg (7)", "AR": 0, "ENC": 0, "Type": "" },
+      "right_arm_8": { "label": "Right Arm (8)", "AR": 0, "ENC": 0, "Type": "" },
+      "left_arm_9": { "label": "Left Arm (9)", "AR": 0, "ENC": 0, "Type": "" }
+    },
+    "shield": { "BR": 0, "Type": "Shield (placeholder)", "ENC": 0 },
+    "notes": "Starter kit as agreed in chat (details can be filled later)."
+  },
+  "wounds": "",
+  "conditions": "",
   "skills": [
     {
       "name": "Combat Style (One-Handed & Shield)",
       "rank": "Journeyman",
-      "rank_value": 2,
       "bonus": 20,
-      "governing": ["Strength", "Agility"]
+      "tn": 0,
+      "governing": ["Strength", "Agility"],
+      "rank_value": 2
     },
     {
       "name": "Evade",
       "rank": "Apprentice",
-      "rank_value": 1,
       "bonus": 10,
-      "governing": ["Agility"]
+      "tn": 0,
+      "governing": ["Agility"],
+      "rank_value": 1
     }
   ],
-  "equipment_summary": {
-    "armor": "Medium armor",
-    "shield": "Shield",
-    "weapons": ["One-handed sword"],
-    "notes": "Starter kit as agreed in chat (details can be filled later)."
-  },
-  "creation_notes": {
-    "assumed_standard_crp": 500,
-    "crp_spent": [
-      { "item": "Combat Style (Journeyman via Novice+Apprentice)", "cost": 300 },
-      { "item": "Evade (Apprentice via Novice+Apprentice)", "cost": 200 }
-    ],
-    "crp_remaining": 0
+  "professions_custom_skills": "",
+  "combat_style": { "name": "One-Handed & Shield", "governing": ["Strength", "Agility"] },
+  "specializations": "",
+  "melee_weapons": [
+    { "name": "One-handed sword", "dmg": "", "h": "", "reach": "", "enc": "" }
+  ],
+  "ranged_weapons": [],
+  "talents_traits_powers": "Creation notes:\n- Assumed standard CRP: 500\n- CRP spent: Combat Style (300), Evade (200)\n- CRP remaining: 0",
+  "items_equipment": [
+    { "item": "Medium armor (placeholder)", "enc": 0 },
+    { "item": "Shield (placeholder)", "enc": 0 },
+    { "item": "One-handed sword (placeholder)", "enc": 0 }
+  ],
+  "total_enc": 0,
+  "drakes": 0,
+  "rituals": "",
+  "magic_skills": [
+    { "name": "Alteration (Wp)", "rank": "", "bonus": 0, "tn": 0 },
+    { "name": "Conjuration (Wp)", "rank": "", "bonus": 0, "tn": 0 },
+    { "name": "Destruction (Wp)", "rank": "", "bonus": 0, "tn": 0 },
+    { "name": "Illusion (Wp)", "rank": "", "bonus": 0, "tn": 0 },
+    { "name": "Mysticism (Wp)", "rank": "", "bonus": 0, "tn": 0 },
+    { "name": "Necromancy (Int)", "rank": "", "bonus": 0, "tn": 0 },
+    { "name": "Restoration (Wp)", "rank": "", "bonus": 0, "tn": 0 }
+  ],
+  "spellcasting": "",
+  "spells": [],
+  "portrait": { "file": "" },
+
+  "legacy": {
+    "original_flat_derived_stats": {
+      "hp_max": 26,
+      "sp_max": 5,
+      "mp_max": 50,
+      "ap_max": 3,
+      "speed_m": 16,
+      "initiative_rating": 16,
+      "carry_rating": 30,
+      "linguistics": 3,
+      "luck_points_per_session": 4
+    }
   }
 }
