@@ -635,12 +635,18 @@ class CharacterWindow:
         
         # Refresh all tables (Treeviews)
         if hasattr(self, '_tables'):
-            for table_id, tree in self._tables.items():
-                if tree.winfo_exists():
-                    bind_path = tree._bind_path
-                    columns_spec = tree._columns_spec
-                    style = tree._style
-                    self._refresh_table(tree, bind_path, columns_spec, style)
+            for table_id, tree in list(self._tables.items()):
+                try:
+                    if tree.winfo_exists():
+                        # Check for required attributes before accessing
+                        if hasattr(tree, '_bind_path') and hasattr(tree, '_columns_spec') and hasattr(tree, '_style'):
+                            bind_path = tree._bind_path
+                            columns_spec = tree._columns_spec
+                            style = tree._style
+                            self._refresh_table(tree, bind_path, columns_spec, style)
+                except tk.TclError:
+                    # Widget was destroyed, remove from tracking
+                    del self._tables[table_id]
         
         # Update portrait
         self._update_portrait_display()
