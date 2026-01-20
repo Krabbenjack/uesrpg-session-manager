@@ -18,6 +18,10 @@ except ImportError:
     PILLOW_AVAILABLE = False
     LANCZOS = None
 
+# Portrait display size constants
+PORTRAIT_MAX_WIDTH = 200
+PORTRAIT_MAX_HEIGHT = 240
+
 
 class CharacterWindow:
     """Main character window with spec-driven UI."""
@@ -573,7 +577,7 @@ class CharacterWindow:
             if PILLOW_AVAILABLE:
                 # Use Pillow for all formats (supports resizing)
                 img = Image.open(portrait_path)
-                img.thumbnail((200, 240), LANCZOS)
+                img.thumbnail((PORTRAIT_MAX_WIDTH, PORTRAIT_MAX_HEIGHT), LANCZOS)
                 self.portrait_image = ImageTk.PhotoImage(img)
                 self.portrait_label.config(image=self.portrait_image, text='')
             elif is_native:
@@ -582,14 +586,14 @@ class CharacterWindow:
                 # Subsample if image is too large (simple integer scaling)
                 width = self.portrait_image.width()
                 height = self.portrait_image.height()
-                if width > 200 or height > 240:
-                    factor = max(width // 200, height // 240, 1) + 1
+                if width > PORTRAIT_MAX_WIDTH or height > PORTRAIT_MAX_HEIGHT:
+                    factor = max(width // PORTRAIT_MAX_WIDTH, height // PORTRAIT_MAX_HEIGHT, 1) + 1
                     self.portrait_image = self.portrait_image.subsample(factor, factor)
                 self.portrait_label.config(image=self.portrait_image, text='')
             elif is_jpg:
                 # JPG requires Pillow
                 self.portrait_label.config(
-                    text=f"JPG requires Pillow.\n\nPlease use PNG/GIF\nor install Pillow:\npip install Pillow",
+                    text="JPG requires Pillow.\n\nPlease use PNG/GIF\nor install Pillow:\npip install Pillow",
                     image=''
                 )
                 self.portrait_image = None
