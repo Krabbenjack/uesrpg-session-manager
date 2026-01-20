@@ -28,6 +28,7 @@ class CharacterModel:
         
         Args:
             bind_path: JSONPath string like "$.name" or "$.derived_stats.HP.current"
+                       or "$.characteristics[0].name"
             
         Returns:
             Value at the path or None if not found
@@ -40,8 +41,20 @@ class CharacterModel:
         if not path:
             return self.data
         
+        # Parse path with array notation support
+        import re
+        # Split by . but keep array indices separate
+        parts = []
+        for segment in path.split('.'):
+            # Check for array notation like "characteristics[0]"
+            match = re.match(r'([^\[]+)\[(\d+)\]', segment)
+            if match:
+                parts.append(match.group(1))  # The key part
+                parts.append(match.group(2))  # The index part
+            else:
+                parts.append(segment)
+        
         # Navigate through the data structure
-        parts = path.split('.')
         current = self.data
         
         for part in parts:
@@ -66,6 +79,7 @@ class CharacterModel:
         
         Args:
             bind_path: JSONPath string like "$.name" or "$.derived_stats.HP.current"
+                       or "$.characteristics[0].name"
             value: Value to set
         """
         if not bind_path or not bind_path.startswith('$'):
@@ -76,8 +90,19 @@ class CharacterModel:
         if not path:
             return
         
+        # Parse path with array notation support
+        import re
+        parts = []
+        for segment in path.split('.'):
+            # Check for array notation like "characteristics[0]"
+            match = re.match(r'([^\[]+)\[(\d+)\]', segment)
+            if match:
+                parts.append(match.group(1))  # The key part
+                parts.append(match.group(2))  # The index part
+            else:
+                parts.append(segment)
+        
         # Navigate through the data structure, creating as needed
-        parts = path.split('.')
         current = self.data
         
         for i, part in enumerate(parts[:-1]):
