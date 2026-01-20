@@ -195,9 +195,16 @@ class SpecRenderer:
             value = ""
         
         try:
-            if widget_type == 'entry' or widget_type == 'readonly_entry':
+            if widget_type == 'entry':
                 widget.delete(0, tk.END)
                 widget.insert(0, str(value))
+            
+            elif widget_type == 'readonly_entry':
+                # Need to temporarily enable for update
+                widget.config(state='normal')
+                widget.delete(0, tk.END)
+                widget.insert(0, str(value))
+                widget.config(state='readonly')
             
             elif widget_type == 'textarea':
                 widget.delete('1.0', tk.END)
