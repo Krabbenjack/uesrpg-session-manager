@@ -12,13 +12,36 @@ Python/Tkinter session manager for UESRPG — JSON import/export, spec-driven UI
 
 ## Requirements
 
-- Python 3.7+
-- tkinter (usually included with Python)
-- Pillow (PIL) for image support
+- Python 3.7+ (tested with Python 3.12 and 3.13)
+- tkinter (usually included with Python on Windows/macOS; install `python3-tk` on Linux)
+- Pillow (PIL) for image support (optional, but recommended)
 
 ## Installation
 
-1. Install dependencies:
+### Windows
+
+1. Ensure Python 3.7+ is installed (Python 3.13 recommended)
+2. Install Pillow for portrait support:
+```bash
+pip install Pillow
+```
+
+### Linux (Ubuntu/Debian)
+
+1. Install Python and tkinter:
+```bash
+sudo apt-get install python3 python3-tk
+```
+
+2. Install Pillow for portrait support:
+```bash
+pip install Pillow
+```
+
+### macOS
+
+1. Ensure Python 3.7+ is installed (tkinter is usually included)
+2. Install Pillow for portrait support:
 ```bash
 pip install Pillow
 ```
@@ -31,9 +54,24 @@ Simply run the main entry point:
 python app.py
 ```
 
+The application will:
+1. Load the UI specification from `ui/ui_spec.json`
+2. Create the main window with a character sheet
+3. Display the tabbed interface with Core, Combat & Skills, Gear, and Magic tabs
+
+### Troubleshooting
+
+If you encounter errors:
+
+- **"No module named 'tkinter'"**: Install tkinter for your platform (see Installation above)
+- **"Spec file not found"**: Ensure you're running from the repository root directory
+- **Portrait not displaying**: Install Pillow (`pip install Pillow`) and place images in `uesrpg_sm/assets/portraits/`
+
 ## Testing
 
-Run the core module tests (does not require a display):
+### Core Module Tests (No Display Required)
+
+Run the core module tests to validate business logic:
 
 ```bash
 python test_core.py
@@ -43,6 +81,24 @@ This validates:
 - Spec loading from `ui/ui_spec.json`
 - Character model data binding with JSONPath
 - Import functionality with merge rules
+
+### UI Tests (Requires Display)
+
+Run UI tests to validate the graphical interface:
+
+```bash
+# On Linux with virtual display:
+xvfb-run python test_ui.py
+
+# On Windows/macOS with native display:
+python test_ui.py
+```
+
+This validates:
+- Spec renderer widget creation
+- Character window initialization
+- UI specification compliance
+- Two-way data binding
 
 ## Project Structure
 
