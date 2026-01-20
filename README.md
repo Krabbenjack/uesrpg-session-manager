@@ -31,6 +31,19 @@ Simply run the main entry point:
 python app.py
 ```
 
+## Testing
+
+Run the core module tests (does not require a display):
+
+```bash
+python test_core.py
+```
+
+This validates:
+- Spec loading from `ui/ui_spec.json`
+- Character model data binding with JSONPath
+- Import functionality with merge rules
+
 ## Project Structure
 
 ```
