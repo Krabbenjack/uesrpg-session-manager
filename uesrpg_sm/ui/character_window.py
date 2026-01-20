@@ -4,12 +4,19 @@ from tkinter import ttk, filedialog, messagebox
 import json
 import os
 
-# Pillow is optional for portrait support
+# Pillow is optional for portrait support (needed for JPG/JPEG and resizing)
 try:
     from PIL import Image, ImageTk
     PILLOW_AVAILABLE = True
+    # Compatibility for older Pillow versions
+    RESAMPLING = getattr(Image, 'Resampling', None)
+    if RESAMPLING:
+        LANCZOS = RESAMPLING.LANCZOS
+    else:
+        LANCZOS = Image.LANCZOS
 except ImportError:
     PILLOW_AVAILABLE = False
+    LANCZOS = None
 
 
 class CharacterWindow:
@@ -37,6 +44,14 @@ class CharacterWindow:
         self.portrait_image = None
         self.portrait_label = None
         
+        # Track table widgets for refresh
+        self._tables = []
+        
+        # Validate spec
+        if not spec:
+            print("Error: Window specification is missing or invalid")
+            messagebox.showerror("Error", "Window specification is missing or invalid.\nPlease check ui/ui_spec.json", parent=root)
+        
         # Configure window
         self._configure_window()
         
@@ -48,6 +63,10 @@ class CharacterWindow:
         
         # Listen for character model changes
         self.character_model.add_observer(self._on_character_changed)
+        
+        # Initial refresh to show data
+        self.renderer.refresh_all_widgets()
+        self._refresh_all_tables()
     
     def _configure_window(self):
         """Configure main window properties."""
@@ -209,68 +228,81 @@ class CharacterWindow:
             
             # Get layout config
             layout = section_spec.get('layout', {})
-            columns = layout.get('columns', 1)
+            slot_columns = layout.get('columns', 1)
             
-            # Configure grid columns
-            for col in range(columns):
-                section_frame.grid_columnconfigure(col, weight=1)
+            # Each slot uses 2 grid columns (label + widget)
+            # So we configure slot_columns * 2 real grid columns
+            real_columns = slot_columns * 2
+            for col in range(real_columns):
+                # Label columns (even) get weight 0, widget columns (odd) get weight 1
+                weight = 1 if col % 2 == 1 else 0
+                section_frame.grid_columnconfigure(col, weight=weight)
             
             # Create widgets
             widgets = section_spec.get('widgets', [])
-            self._create_widgets(section_frame, widgets, columns)
+            self._create_widgets(section_frame, widgets, slot_columns)
     
-    def _create_widgets(self, parent, widgets, grid_columns):
+    def _create_widgets(self, parent, widgets, slot_columns):
         """Create widgets from spec.
         
         Args:
             parent: Parent widget
             widgets: List of widget specifications
-            grid_columns: Number of grid columns
+            slot_columns: Number of slot columns (each slot = 2 real grid columns)
         """
         current_row = 0
-        current_col = 0
+        current_slot = 0  # Track position in slot units
         
         for widget_spec in widgets:
             widget_type = widget_spec.get('type', 'field')
             colspan = widget_spec.get('colspan', 1)
             
             if widget_type == 'field':
-                self.renderer.render_field(parent, widget_spec, current_row, current_col)
+                # Convert slot position to real grid column
+                real_col = current_slot * 2
+                self.renderer.render_field(parent, widget_spec, current_row, real_col)
                 
-                # Advance position
-                current_col += colspan
-                if current_col >= grid_columns:
-                    current_col = 0
+                # Advance position in slot units
+                current_slot += colspan
+                if current_slot >= slot_columns:
+                    current_slot = 0
                     current_row += 1
             
             elif widget_type == 'table_inline':
                 # Render inline table for characteristics or armor slots
-                self._create_table_inline(parent, widget_spec, current_row, current_col)
+                real_col = current_slot * 2
+                self._create_table_inline(parent, widget_spec, current_row, real_col)
                 current_row += 1
-                current_col = 0
+                current_slot = 0
             
             elif widget_type == 'table':
                 # Render table with add/edit/delete
-                self._create_table(parent, widget_spec, current_row, current_col)
+                real_col = current_slot * 2
+                self._create_table(parent, widget_spec, current_row, real_col)
                 current_row += 1
-                current_col = 0
+                current_slot = 0
             
             elif widget_type == 'group':
                 # Create sub-group
+                real_col = current_slot * 2
+                # Group spans colspan slots, which is colspan * 2 real columns
+                real_colspan = colspan * 2
                 group_frame = ttk.LabelFrame(parent, text=widget_spec.get('title', ''), padding=5)
-                group_frame.grid(row=current_row, column=current_col, columnspan=colspan, sticky='ew', pady=5)
+                group_frame.grid(row=current_row, column=real_col, columnspan=real_colspan, sticky='ew', pady=5)
                 
                 group_layout = widget_spec.get('layout', {})
-                group_cols = group_layout.get('columns', 2)
+                group_slot_cols = group_layout.get('columns', 2)
                 
-                for col in range(group_cols):
-                    group_frame.grid_columnconfigure(col, weight=1)
+                # Configure group grid columns (slot_cols * 2 real columns)
+                for col in range(group_slot_cols * 2):
+                    weight = 1 if col % 2 == 1 else 0
+                    group_frame.grid_columnconfigure(col, weight=weight)
                 
-                self._create_widgets(group_frame, widget_spec.get('widgets', []), group_cols)
+                self._create_widgets(group_frame, widget_spec.get('widgets', []), group_slot_cols)
                 
-                current_col += colspan
-                if current_col >= grid_columns:
-                    current_col = 0
+                current_slot += colspan
+                if current_slot >= slot_columns:
+                    current_slot = 0
                     current_row += 1
     
     def _create_table_inline(self, parent, table_spec, row, col):
@@ -394,6 +426,9 @@ class CharacterWindow:
         tree._bind_path = bind_path
         tree._columns_spec = columns_spec
         tree._style = style
+        
+        # Register table for refresh
+        self._tables.append(tree)
         
         ttk.Button(btn_frame, text="Add", command=lambda: self._table_add(tree)).pack(side='left', padx=2)
         ttk.Button(btn_frame, text="Delete", command=lambda: self._table_delete(tree)).pack(side='left', padx=2)
@@ -524,30 +559,68 @@ class CharacterWindow:
         portrait_dir = self.spec_loader.get_portrait_dir()
         portrait_path = os.path.join(portrait_dir, portrait_file)
         
-        if not PILLOW_AVAILABLE:
-            self.portrait_label.config(text=f"Portrait:\n{portrait_file}\n\n(Pillow not installed)")
+        if not os.path.exists(portrait_path):
+            self.portrait_label.config(text="Portrait file\nnot found", image='')
+            self.portrait_image = None
             return
         
-        if os.path.exists(portrait_path):
-            try:
-                # Load and resize image
+        # Check file extension
+        _, ext = os.path.splitext(portrait_file.lower())
+        is_jpg = ext in ('.jpg', '.jpeg')
+        is_native = ext in ('.png', '.gif')
+        
+        try:
+            if PILLOW_AVAILABLE:
+                # Use Pillow for all formats (supports resizing)
                 img = Image.open(portrait_path)
-                img.thumbnail((200, 240), Image.Resampling.LANCZOS)
-                
+                img.thumbnail((200, 240), LANCZOS)
                 self.portrait_image = ImageTk.PhotoImage(img)
                 self.portrait_label.config(image=self.portrait_image, text='')
-            except Exception as e:
-                self.portrait_label.config(text=f"Error loading\nportrait:\n{e}")
-        else:
-            self.portrait_label.config(text="Portrait file\nnot found")
+            elif is_native:
+                # Use Tkinter's built-in PhotoImage for PNG/GIF (no resizing)
+                self.portrait_image = tk.PhotoImage(file=portrait_path)
+                # Subsample if image is too large (simple integer scaling)
+                width = self.portrait_image.width()
+                height = self.portrait_image.height()
+                if width > 200 or height > 240:
+                    factor = max(width // 200, height // 240, 1) + 1
+                    self.portrait_image = self.portrait_image.subsample(factor, factor)
+                self.portrait_label.config(image=self.portrait_image, text='')
+            elif is_jpg:
+                # JPG requires Pillow
+                self.portrait_label.config(
+                    text=f"JPG requires Pillow.\n\nPlease use PNG/GIF\nor install Pillow:\npip install Pillow",
+                    image=''
+                )
+                self.portrait_image = None
+            else:
+                self.portrait_label.config(text=f"Unsupported format:\n{ext}", image='')
+                self.portrait_image = None
+        except Exception as e:
+            self.portrait_label.config(text=f"Error loading\nportrait:\n{e}", image='')
+            self.portrait_image = None
     
     def _on_character_changed(self):
         """Handle character model changes."""
         # Refresh all bound widgets
         self.renderer.refresh_all_widgets()
         
+        # Refresh all tables
+        self._refresh_all_tables()
+        
         # Update portrait
         self._update_portrait_display()
+    
+    def _refresh_all_tables(self):
+        """Refresh all registered tables from the model."""
+        for tree in self._tables:
+            try:
+                bind_path = tree._bind_path
+                columns_spec = tree._columns_spec
+                style = tree._style
+                self._refresh_table(tree, bind_path, columns_spec, style)
+            except Exception as e:
+                print(f"Error refreshing table: {e}")
     
     def _file_new(self):
         """Create a new character."""

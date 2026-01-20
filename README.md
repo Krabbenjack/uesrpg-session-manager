@@ -7,29 +7,57 @@ Python/Tkinter session manager for UESRPG — JSON import/export, spec-driven UI
 - **Spec-driven UI**: The entire character sheet UI is generated from `ui/ui_spec.json`
 - **Character Management**: Create, open, save character sheets as JSON
 - **Import System**: Import character data from external JSON files with merge rules
-- **Portrait Support**: Select and display character portraits
+- **Portrait Support**: Select and display character portraits (PNG/GIF work without Pillow)
 - **Tabbed Interface**: Organized tabs for Core stats, Combat & Skills, Gear, and Magic
 
 ## Requirements
 
 - Python 3.7+
 - tkinter (usually included with Python)
-- Pillow (PIL) for image support
+- Pillow (PIL) - **optional**, required for JPG portraits and image resizing
 
 ## Installation
 
-1. Install dependencies:
+1. Clone or download this repository
+2. (Optional) Install Pillow for full image support:
 ```bash
 pip install Pillow
 ```
 
 ## Running the Application
 
-Simply run the main entry point:
+### Recommended method (command line)
 
 ```bash
 python app.py
 ```
+
+### Alternative methods
+
+**Windows:**
+- Double-click `run_windows.bat`
+
+**Mac/Linux:**
+```bash
+./run_mac_linux.sh
+```
+or make it executable first:
+```bash
+chmod +x run_mac_linux.sh
+./run_mac_linux.sh
+```
+
+**As a Python module:**
+```bash
+python -m uesrpg_sm
+```
+
+### Troubleshooting: "Opens in IDLE" (Windows)
+
+If double-clicking `app.py` opens IDLE instead of running the app:
+- Use `run_windows.bat` instead, or
+- Right-click → "Open with" → Python, or  
+- Run `python app.py` from Command Prompt
 
 ## Testing
 

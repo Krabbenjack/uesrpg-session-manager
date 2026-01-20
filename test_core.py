@@ -50,6 +50,10 @@ def test_spec_loader():
     assert 'characteristics' in default_char, "Default character missing characteristics"
     assert len(default_char['characteristics']) == 8, "Expected 8 characteristics"
     
+    # Test portrait directory is absolute path
+    portrait_dir = loader.get_portrait_dir()
+    assert os.path.isabs(portrait_dir), "Portrait directory should be absolute path"
+    
     print("✓ spec_loader tests passed")
 
 

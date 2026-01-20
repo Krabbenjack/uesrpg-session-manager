@@ -14,6 +14,9 @@ class SpecLoader:
         """
         self.spec_path = spec_path
         self.spec = None
+        # Compute base directory (repo root) relative to the spec file
+        # The spec file is at ui/ui_spec.json, so repo root is one level up
+        self.base_dir = os.path.dirname(os.path.dirname(os.path.abspath(spec_path)))
         self._load()
     
     def _load(self):
@@ -56,5 +59,13 @@ class SpecLoader:
         return self.spec.get('data', {}).get('default_character', {})
     
     def get_portrait_dir(self):
-        """Get portrait directory path."""
-        return self.spec.get('data', {}).get('portrait_dir', 'uesrpg_sm/assets/portraits')
+        """Get portrait directory path as an absolute path.
+        
+        Returns:
+            Absolute path to the portrait directory
+        """
+        portrait_dir = self.spec.get('data', {}).get('portrait_dir', 'uesrpg_sm/assets/portraits')
+        # If relative path, resolve it relative to the repo root (base_dir)
+        if not os.path.isabs(portrait_dir):
+            portrait_dir = os.path.join(self.base_dir, portrait_dir)
+        return portrait_dir

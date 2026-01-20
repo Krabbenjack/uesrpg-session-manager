@@ -78,7 +78,7 @@ class SpecRenderer:
             parent: Parent widget
             field_spec: Field specification dictionary
             row: Grid row
-            column: Grid column
+            column: Grid column (this is the real grid column, already computed from slot)
             
         Returns:
             Created widget
@@ -88,26 +88,35 @@ class SpecRenderer:
         bind_path = field_spec.get('bind', '')
         colspan = field_spec.get('colspan', 1)
         
-        # Create label
-        label = ttk.Label(parent, text=label_text + ':')
-        label.grid(row=row, column=column, sticky='w', padx=self.spacing.get('padx', 5), pady=self.spacing.get('pady', 2))
+        # Calculate widget columnspan
+        # For a field with slot colspan=N, the widget should span (N*2 - 1) columns
+        # This is because each slot uses 2 grid columns (label + widget)
+        # But we only want the widget to extend, not include the label column of next slot
+        widget_span = max(1, colspan * 2 - 1)
         
-        # Create widget based on type
+        padx = self.spacing.get('padx', 5)
+        pady = self.spacing.get('pady', 2)
+        
+        # Create label at column
+        label = ttk.Label(parent, text=label_text + ':')
+        label.grid(row=row, column=column, sticky='w', padx=padx, pady=pady)
+        
+        # Create widget at column + 1
         widget = None
-        widget_column = column + 1 if label_text else column
+        widget_column = column + 1
         
         if widget_type == 'entry':
             widget = ttk.Entry(parent)
-            widget.grid(row=row, column=widget_column, columnspan=colspan-1 if label_text else colspan, sticky='ew', padx=self.spacing.get('padx', 5), pady=self.spacing.get('pady', 2))
+            widget.grid(row=row, column=widget_column, columnspan=widget_span, sticky='ew', padx=padx, pady=pady)
         
         elif widget_type == 'readonly_entry':
             widget = ttk.Entry(parent, state='readonly')
-            widget.grid(row=row, column=widget_column, columnspan=colspan-1 if label_text else colspan, sticky='ew', padx=self.spacing.get('padx', 5), pady=self.spacing.get('pady', 2))
+            widget.grid(row=row, column=widget_column, columnspan=widget_span, sticky='ew', padx=padx, pady=pady)
         
         elif widget_type == 'textarea':
             height = field_spec.get('height', 5)
             frame = ttk.Frame(parent)
-            frame.grid(row=row, column=widget_column, columnspan=colspan-1 if label_text else colspan, sticky='nsew', padx=self.spacing.get('padx', 5), pady=self.spacing.get('pady', 2))
+            frame.grid(row=row, column=widget_column, columnspan=widget_span, sticky='nsew', padx=padx, pady=pady)
             
             widget = tk.Text(frame, height=height, width=30, bg='white', fg=self.colors.get('fg', '#000000'))
             widget.pack(side='left', fill='both', expand=True)
@@ -120,23 +129,23 @@ class SpecRenderer:
             min_val = field_spec.get('min', 0)
             max_val = field_spec.get('max', 999999)
             widget = ttk.Spinbox(parent, from_=min_val, to=max_val, width=10)
-            widget.grid(row=row, column=widget_column, columnspan=colspan-1 if label_text else colspan, sticky='w', padx=self.spacing.get('padx', 5), pady=self.spacing.get('pady', 2))
+            widget.grid(row=row, column=widget_column, columnspan=widget_span, sticky='w', padx=padx, pady=pady)
         
         elif widget_type == 'check':
             var = tk.BooleanVar()
             widget = ttk.Checkbutton(parent, variable=var)
             widget.var = var
-            widget.grid(row=row, column=widget_column, columnspan=colspan-1 if label_text else colspan, sticky='w', padx=self.spacing.get('padx', 5), pady=self.spacing.get('pady', 2))
+            widget.grid(row=row, column=widget_column, columnspan=widget_span, sticky='w', padx=padx, pady=pady)
         
         elif widget_type == 'tags':
             # Comma-separated tags
             widget = ttk.Entry(parent)
-            widget.grid(row=row, column=widget_column, columnspan=colspan-1 if label_text else colspan, sticky='ew', padx=self.spacing.get('padx', 5), pady=self.spacing.get('pady', 2))
+            widget.grid(row=row, column=widget_column, columnspan=widget_span, sticky='ew', padx=padx, pady=pady)
         
         elif widget_type == 'int_list_csv':
             # Comma-separated integers
             widget = ttk.Entry(parent)
-            widget.grid(row=row, column=widget_column, columnspan=colspan-1 if label_text else colspan, sticky='ew', padx=self.spacing.get('padx', 5), pady=self.spacing.get('pady', 2))
+            widget.grid(row=row, column=widget_column, columnspan=widget_span, sticky='ew', padx=padx, pady=pady)
         
         # Bind to character model if bind path provided
         if bind_path and widget:
