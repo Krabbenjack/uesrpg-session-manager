@@ -2,17 +2,21 @@
 import json
 import copy
 
+from .validator import validate_and_fill
+
 
 class Importer:
     """Handles importing character data with merge rules."""
     
-    def __init__(self, import_map):
+    def __init__(self, import_map, default_character=None):
         """Initialize importer with an import map.
         
         Args:
             import_map: Dictionary mapping source keys to target bind paths
+            default_character: Default character data for validation (optional)
         """
         self.import_map = import_map
+        self.default_character = default_character or {}
     
     def load_json(self, file_path):
         """Load JSON data from a file.
@@ -83,6 +87,12 @@ class Importer:
                     # Deep copy to avoid reference issues
                     value_to_set = copy.deepcopy(source_value)
                     character_model.set_value(target_bind, value_to_set)
+        
+        # After import, validate and fill missing fields
+        if self.default_character:
+            current_data = character_model.to_dict()
+            validated_data = validate_and_fill(current_data, self.default_character)
+            character_model.from_dict(validated_data)
     
     def _is_empty(self, value):
         """Check if a value is considered empty for import purposes.

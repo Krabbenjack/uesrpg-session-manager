@@ -14,11 +14,11 @@ Python/Tkinter session manager for UESRPG — JSON import/export, spec-driven UI
 
 - Python 3.7+
 - tkinter (usually included with Python)
-- Pillow (PIL) for image support
+- Pillow (PIL) for JPG/JPEG portrait support (optional - PNG/GIF work without it)
 
 ## Installation
 
-1. Install dependencies:
+1. Install dependencies (optional, for JPG portrait support):
 ```bash
 pip install Pillow
 ```
@@ -29,6 +29,12 @@ Simply run the main entry point:
 
 ```bash
 python app.py
+```
+
+Or run as a module:
+
+```bash
+python -m uesrpg_sm
 ```
 
 ## Testing
@@ -43,6 +49,7 @@ This validates:
 - Spec loading from `ui/ui_spec.json`
 - Character model data binding with JSONPath
 - Import functionality with merge rules
+- Validator for ensuring data completeness
 
 ## Project Structure
 
@@ -50,15 +57,17 @@ This validates:
 uesrpg-session-manager/
 ├── app.py                          # Main entry point
 ├── uesrpg_sm/                      # Main package
+│   ├── __main__.py                 # Module entry point
 │   ├── core/                       # Core logic
 │   │   ├── character_model.py      # Character data model with JSONPath binding
 │   │   ├── importer.py             # Import logic with merge rules
-│   │   └── spec_loader.py          # UI spec loader
+│   │   ├── spec_loader.py          # UI spec loader
+│   │   └── validator.py            # Data validation and filling
 │   ├── ui/                         # UI components
 │   │   ├── character_window.py     # Main character window
 │   │   ├── import_window.py        # Import dialog
 │   │   └── spec_renderer.py        # Widget renderer from spec
-│   └── assets/                     # Assets
+│   └── images/                     # Assets
 │       └── portraits/              # Character portrait images
 ├── ui/
 │   └── ui_spec.json               # UI specification
@@ -72,9 +81,11 @@ uesrpg-session-manager/
 
 To add character portraits:
 
-1. Place PNG, JPG, JPEG, or GIF images in: `uesrpg_sm/assets/portraits/`
+1. Place PNG, GIF, or JPG images in: `uesrpg_sm/images/portraits/`
 2. Click "Select Portrait..." in the character window
 3. Choose from available images
+
+**Note:** PNG and GIF images work without any extra dependencies. For JPG/JPEG images, you need to install Pillow (`pip install Pillow`).
 
 If no images are found, you'll see a message. The directory is created automatically.
 
@@ -99,7 +110,7 @@ The Import feature allows you to load character data from external JSON files:
    - **Checked**: Overwrites all fields from the source
 5. Click **Import** to merge the data
 
-The import uses a mapping defined in `ui_spec.json` to match source fields to character sheet fields.
+The import uses a mapping defined in `ui_spec.json` to match source fields to character sheet fields. After import, the validator ensures all expected fields exist with proper structure.
 
 ### Supported Field Types
 

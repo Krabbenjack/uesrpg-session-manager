@@ -6,6 +6,9 @@ import os
 class SpecLoader:
     """Loads and provides access to the UI specification."""
     
+    # Canonical portrait directory relative to project root
+    PORTRAIT_DIR = 'uesrpg_sm/images/portraits'
+    
     def __init__(self, spec_path):
         """Initialize the spec loader.
         
@@ -14,12 +17,17 @@ class SpecLoader:
         """
         self.spec_path = spec_path
         self.spec = None
+        self._project_root = None
         self._load()
     
     def _load(self):
         """Load the specification from JSON file."""
         if not os.path.exists(self.spec_path):
             raise FileNotFoundError(f"Spec file not found: {self.spec_path}")
+        
+        # Determine project root from spec path (spec is in ui/ folder)
+        spec_dir = os.path.dirname(os.path.abspath(self.spec_path))
+        self._project_root = os.path.dirname(spec_dir)
         
         with open(self.spec_path, 'r', encoding='utf-8') as f:
             self.spec = json.load(f)
@@ -56,5 +64,10 @@ class SpecLoader:
         return self.spec.get('data', {}).get('default_character', {})
     
     def get_portrait_dir(self):
-        """Get portrait directory path."""
-        return self.spec.get('data', {}).get('portrait_dir', 'uesrpg_sm/assets/portraits')
+        """Get portrait directory path.
+        
+        Returns the canonical portrait directory (uesrpg_sm/images/portraits)
+        resolved relative to the project root.
+        """
+        # Always use the canonical path, ignore spec value
+        return os.path.join(self._project_root, self.PORTRAIT_DIR)

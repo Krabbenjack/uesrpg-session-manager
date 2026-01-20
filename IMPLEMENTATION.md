@@ -13,6 +13,7 @@ This MVP implementation provides a fully spec-driven character sheet manager for
    - All windows, tabs, sections, and widgets generated from spec
    - Theme (colors, fonts) applied from spec
    - Menu structure defined in spec
+   - Slot-based grid layout (each field slot = 2 columns: label + widget)
 
 2. **Data Binding System**
    - JSONPath-like binding syntax (e.g., `$.name`, `$.derived_stats.HP.current`)
@@ -25,26 +26,41 @@ This MVP implementation provides a fully spec-driven character sheet manager for
    - Merge rules: overwrite vs. fill-empty
    - Preview before import
    - Supports external JSON files
+   - Validation after import to ensure data completeness
+
+4. **Validation System**
+   - Recursively validates and fills character data
+   - Missing keys are filled from defaults
+   - Type mismatches are corrected and logged
+   - Unknown keys are preserved
 
 ### Implemented Modules
 
 #### Core (`uesrpg_sm/core/`)
 
-- **spec_loader.py** (63 lines)
+- **spec_loader.py**
   - Loads and parses `ui/ui_spec.json`
   - Provides access methods for app config, theme, menus, windows, etc.
+  - Returns canonical portrait directory (uesrpg_sm/images/portraits)
 
-- **character_model.py** (178 lines)
+- **character_model.py**
   - Character data model with JSONPath binding
   - Get/set values using paths like `$.name` or `$.characteristics[0].score`
   - Observer pattern for data change notifications
   - Supports nested objects, arrays, and complex structures
 
-- **importer.py** (109 lines)
+- **importer.py**
   - Loads character data from external JSON files
   - Maps source fields to target character fields
   - Implements merge rules (overwrite vs. preserve existing)
   - Generates preview information
+  - Validates imported data against defaults
+
+- **validator.py** (NEW)
+  - `validate_and_fill()` function
+  - Recursively ensures all keys from default exist in data
+  - Handles type mismatches gracefully
+  - Prevents "blank UI" issues from incomplete data
 
 #### UI (`uesrpg_sm/ui/`)
 
@@ -83,9 +99,9 @@ This MVP implementation provides a fully spec-driven character sheet manager for
 
 #### Testing
 
-- **test_core.py** (198 lines)
+- **test_core.py**
   - Comprehensive unit tests for all core modules
-  - Tests spec loading, character model, and importer
+  - Tests spec loading, character model, importer, and validator
   - Runs without requiring a display
 
 ## Supported Widget Types
@@ -105,11 +121,12 @@ The spec-driven renderer currently supports:
 ## Special Features Implemented
 
 ### 1. Portrait System
-- Selects images from `uesrpg_sm/assets/portraits/`
-- Supports PNG, JPG, JPEG, GIF
+- Selects images from `uesrpg_sm/images/portraits/`
+- PNG and GIF work with Tkinter's built-in PhotoImage (no dependencies)
+- JPG/JPEG requires Pillow (shows helpful message if not installed)
 - Displays portrait in left panel
 - Stores relative path in character data
-- Requires Pillow library (optional)
+- Keeps persistent reference to prevent garbage collection
 
 ### 2. Theme System
 - Background color: #FFD5AF (light peach)
@@ -168,7 +185,7 @@ Character data follows the structure defined in `ui_spec.json` under `data.defau
 - All Python files compile without errors
 - No syntax errors
 - Imports are clean and minimal
-- Pillow is optional (graceful degradation)
+- Pillow is optional (graceful degradation for JPG support)
 
 ⚠️ **UI Testing**
 - Requires environment with tkinter and display
@@ -179,16 +196,20 @@ Character data follows the structure defined in `ui_spec.json` under `data.defau
 
 1. **Install dependencies**:
    ```bash
-   pip install Pillow  # Optional, for portrait support
+   pip install Pillow  # Optional, for JPG portrait support
    ```
 
 2. **Run the application**:
    ```bash
    python app.py
    ```
+   Or as a module:
+   ```bash
+   python -m uesrpg_sm
+   ```
 
 3. **Add portraits** (optional):
-   - Place PNG/JPG/GIF images in `uesrpg_sm/assets/portraits/`
+   - Place PNG/GIF/JPG images in `uesrpg_sm/images/portraits/`
    - Use "Select Portrait..." button in the app
 
 4. **Import character data**:

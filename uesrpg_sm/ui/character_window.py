@@ -4,6 +4,8 @@ from tkinter import ttk, filedialog, messagebox
 import json
 import os
 
+from ..core.validator import validate_and_fill
+
 # Pillow is optional for portrait support
 try:
     from PIL import Image, ImageTk
@@ -145,8 +147,8 @@ class CharacterWindow:
         select_btn = ttk.Button(panel, text="Select Portrait…", command=self._select_portrait)
         select_btn.pack(fill='x', pady=5)
         
-        # Hint label
-        hint_label = ttk.Label(panel, text="Put images into\nassets/portraits\n(png/jpg/gif)",
+        # Hint label - use correct folder path
+        hint_label = ttk.Label(panel, text="Put images into\nimages/portraits\n(png/gif/jpg)",
                               justify='center', wraplength=180)
         hint_label.pack(pady=5)
         
@@ -207,73 +209,94 @@ class CharacterWindow:
             section_frame = ttk.LabelFrame(parent, text=section_spec.get('title', ''), padding=10)
             section_frame.pack(fill='x', padx=10, pady=5)
             
-            # Get layout config
+            # Get layout config (columns = number of field slots)
             layout = section_spec.get('layout', {})
-            columns = layout.get('columns', 1)
+            slots = layout.get('columns', 1)
             
-            # Configure grid columns
-            for col in range(columns):
-                section_frame.grid_columnconfigure(col, weight=1)
+            # Configure grid columns: each slot = 2 real columns (label + widget)
+            real_columns = slots * 2
+            for col in range(real_columns):
+                # Give widget columns (odd indices) more weight than label columns (even indices)
+                weight = 1 if col % 2 == 1 else 0
+                section_frame.grid_columnconfigure(col, weight=weight)
             
             # Create widgets
             widgets = section_spec.get('widgets', [])
-            self._create_widgets(section_frame, widgets, columns)
+            self._create_widgets(section_frame, widgets, slots)
     
-    def _create_widgets(self, parent, widgets, grid_columns):
-        """Create widgets from spec.
+    def _create_widgets(self, parent, widgets, slot_columns):
+        """Create widgets from spec using slot-based layout.
+        
+        Each slot = 2 real grid columns (label + widget).
+        Slot advancement is based on slots, not real grid columns.
         
         Args:
             parent: Parent widget
             widgets: List of widget specifications
-            grid_columns: Number of grid columns
+            slot_columns: Number of slot columns (field positions)
         """
         current_row = 0
-        current_col = 0
+        current_slot = 0
         
         for widget_spec in widgets:
             widget_type = widget_spec.get('type', 'field')
-            colspan = widget_spec.get('colspan', 1)
+            colspan = max(1, widget_spec.get('colspan', 1))
+            
+            # If this widget won't fit on current row, move to next row
+            if current_slot + colspan > slot_columns and current_slot > 0:
+                current_slot = 0
+                current_row += 1
             
             if widget_type == 'field':
-                self.renderer.render_field(parent, widget_spec, current_row, current_col)
+                self.renderer.render_field(parent, widget_spec, current_row, current_slot)
                 
-                # Advance position
-                current_col += colspan
-                if current_col >= grid_columns:
-                    current_col = 0
+                # Advance slot position
+                current_slot += colspan
+                if current_slot >= slot_columns:
+                    current_slot = 0
                     current_row += 1
             
             elif widget_type == 'table_inline':
                 # Render inline table for characteristics or armor slots
-                self._create_table_inline(parent, widget_spec, current_row, current_col)
+                # Spans all slots (full width)
+                real_col = current_slot * 2
+                real_colspan = slot_columns * 2
+                self._create_table_inline(parent, widget_spec, current_row, real_col, real_colspan)
                 current_row += 1
-                current_col = 0
+                current_slot = 0
             
             elif widget_type == 'table':
                 # Render table with add/edit/delete
-                self._create_table(parent, widget_spec, current_row, current_col)
+                # Spans all slots (full width)
+                real_col = current_slot * 2
+                real_colspan = slot_columns * 2
+                self._create_table(parent, widget_spec, current_row, real_col, real_colspan)
                 current_row += 1
-                current_col = 0
+                current_slot = 0
             
             elif widget_type == 'group':
                 # Create sub-group
+                real_col = current_slot * 2
+                real_colspan = colspan * 2
                 group_frame = ttk.LabelFrame(parent, text=widget_spec.get('title', ''), padding=5)
-                group_frame.grid(row=current_row, column=current_col, columnspan=colspan, sticky='ew', pady=5)
+                group_frame.grid(row=current_row, column=real_col, columnspan=real_colspan, sticky='ew', pady=5)
                 
                 group_layout = widget_spec.get('layout', {})
-                group_cols = group_layout.get('columns', 2)
+                group_slots = group_layout.get('columns', 2)
                 
-                for col in range(group_cols):
-                    group_frame.grid_columnconfigure(col, weight=1)
+                # Configure grid columns for group frame
+                for col in range(group_slots * 2):
+                    weight = 1 if col % 2 == 1 else 0
+                    group_frame.grid_columnconfigure(col, weight=weight)
                 
-                self._create_widgets(group_frame, widget_spec.get('widgets', []), group_cols)
+                self._create_widgets(group_frame, widget_spec.get('widgets', []), group_slots)
                 
-                current_col += colspan
-                if current_col >= grid_columns:
-                    current_col = 0
+                current_slot += colspan
+                if current_slot >= slot_columns:
+                    current_slot = 0
                     current_row += 1
     
-    def _create_table_inline(self, parent, table_spec, row, col):
+    def _create_table_inline(self, parent, table_spec, row, col, colspan=None):
         """Create an inline table (for characteristics or armor).
         
         Args:
@@ -281,14 +304,33 @@ class CharacterWindow:
             table_spec: Table specification
             row: Grid row
             col: Grid column
+            colspan: Column span (default: full width)
         """
         bind_path = table_spec.get('bind', '')
         mode = table_spec.get('mode', 'list')
+        table_id = table_spec.get('id', '')
         
         # For MVP, render as a simple grid of entry fields
         frame = ttk.Frame(parent)
-        frame.grid(row=row, column=col, columnspan=8, sticky='ew', pady=5)
+        real_colspan = colspan if colspan else 16  # Default wide span
+        frame.grid(row=row, column=col, columnspan=real_colspan, sticky='ew', pady=5)
         
+        # Store for later refresh
+        if not hasattr(self, '_inline_tables'):
+            self._inline_tables = {}
+        self._inline_tables[table_id] = (frame, table_spec, bind_path, mode)
+        
+        self._populate_table_inline(frame, table_spec, bind_path, mode)
+    
+    def _populate_table_inline(self, frame, table_spec, bind_path, mode):
+        """Populate an inline table with data.
+        
+        Args:
+            frame: Frame to populate
+            table_spec: Table specification
+            bind_path: Data binding path
+            mode: Table mode ('list' or 'keyed_object')
+        """
         if mode == 'keyed_object':
             # Armor slots mode
             rows = table_spec.get('rows', [])
@@ -343,7 +385,7 @@ class CharacterWindow:
                             entry.grid(row=i+1, column=j, padx=2, pady=1)
                             self.renderer._bind_widget(entry, bind, 'readonly_entry' if is_readonly else 'entry')
     
-    def _create_table(self, parent, table_spec, row, col):
+    def _create_table(self, parent, table_spec, row, col, colspan=None):
         """Create a table with treeview.
         
         Args:
@@ -351,19 +393,22 @@ class CharacterWindow:
             table_spec: Table specification
             row: Grid row
             col: Grid column
+            colspan: Column span (default: full width)
         """
         bind_path = table_spec.get('bind', '')
         columns_spec = table_spec.get('columns', [])
         style = table_spec.get('style', 'base')
+        table_id = table_spec.get('id', '')
         
         # Frame for table
+        real_colspan = colspan if colspan else 16  # Default wide span
         frame = ttk.LabelFrame(parent, text=table_spec.get('title', ''))
-        frame.grid(row=row, column=col, columnspan=8, sticky='nsew', pady=5)
+        frame.grid(row=row, column=col, columnspan=real_colspan, sticky='nsew', pady=5)
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_rowconfigure(0, weight=1)
         
         # Create treeview
-        columns = [col['key'] for col in columns_spec]
+        columns = [c['key'] for c in columns_spec]
         tree = ttk.Treeview(frame, columns=columns, show='headings', height=8)
         
         # Configure columns
@@ -397,6 +442,11 @@ class CharacterWindow:
         
         ttk.Button(btn_frame, text="Add", command=lambda: self._table_add(tree)).pack(side='left', padx=2)
         ttk.Button(btn_frame, text="Delete", command=lambda: self._table_delete(tree)).pack(side='left', padx=2)
+        
+        # Store for later refresh
+        if not hasattr(self, '_tables'):
+            self._tables = {}
+        self._tables[table_id] = tree
         
         # Load data into tree
         self._refresh_table(tree, bind_path, columns_spec, style)
@@ -515,36 +565,82 @@ class CharacterWindow:
         ttk.Button(dialog, text="Cancel", command=dialog.destroy).pack(pady=5)
     
     def _update_portrait_display(self):
-        """Update the portrait image display."""
+        """Update the portrait image display.
+        
+        Uses Tkinter PhotoImage for PNG/GIF.
+        For JPG/JPEG, requires Pillow. Shows a message if Pillow isn't installed.
+        """
         portrait_file = self.character_model.get_value('$.portrait.file')
         
-        if not portrait_file or not self.portrait_label:
+        if not self.portrait_label:
+            return
+            
+        if not portrait_file:
+            self.portrait_label.config(text="No portrait\nselected", image='')
             return
         
         portrait_dir = self.spec_loader.get_portrait_dir()
         portrait_path = os.path.join(portrait_dir, portrait_file)
         
-        if not PILLOW_AVAILABLE:
-            self.portrait_label.config(text=f"Portrait:\n{portrait_file}\n\n(Pillow not installed)")
+        if not os.path.exists(portrait_path):
+            self.portrait_label.config(text=f"Portrait file\nnot found:\n{portrait_file}", image='')
             return
         
-        if os.path.exists(portrait_path):
-            try:
-                # Load and resize image
+        # Check file extension
+        ext = os.path.splitext(portrait_file)[1].lower()
+        
+        try:
+            if ext in ('.png', '.gif'):
+                # Use Tkinter's built-in PhotoImage (no Pillow needed)
+                self.portrait_image = tk.PhotoImage(file=portrait_path)
+                
+                # Subsample to fit max size (200x240) - rough scaling
+                img_width = self.portrait_image.width()
+                img_height = self.portrait_image.height()
+                
+                if img_width > 200 or img_height > 240:
+                    # Calculate subsample factor
+                    factor_w = max(1, img_width // 200)
+                    factor_h = max(1, img_height // 240)
+                    factor = max(factor_w, factor_h)
+                    self.portrait_image = self.portrait_image.subsample(factor, factor)
+                
+                self.portrait_label.config(image=self.portrait_image, text='')
+                
+            elif ext in ('.jpg', '.jpeg'):
+                # JPG requires Pillow
+                if not PILLOW_AVAILABLE:
+                    self.portrait_label.config(
+                        text=f"Cannot display JPG:\n{portrait_file}\n\nInstall Pillow:\npip install Pillow",
+                        image=''
+                    )
+                    return
+                
+                # Load with Pillow
                 img = Image.open(portrait_path)
                 img.thumbnail((200, 240), Image.Resampling.LANCZOS)
-                
                 self.portrait_image = ImageTk.PhotoImage(img)
                 self.portrait_label.config(image=self.portrait_image, text='')
-            except Exception as e:
-                self.portrait_label.config(text=f"Error loading\nportrait:\n{e}")
-        else:
-            self.portrait_label.config(text="Portrait file\nnot found")
+                
+            else:
+                self.portrait_label.config(text=f"Unsupported format:\n{ext}", image='')
+                
+        except Exception as e:
+            self.portrait_label.config(text=f"Error loading\nportrait:\n{e}", image='')
     
     def _on_character_changed(self):
         """Handle character model changes."""
         # Refresh all bound widgets
         self.renderer.refresh_all_widgets()
+        
+        # Refresh all tables (Treeviews)
+        if hasattr(self, '_tables'):
+            for table_id, tree in self._tables.items():
+                if tree.winfo_exists():
+                    bind_path = tree._bind_path
+                    columns_spec = tree._columns_spec
+                    style = tree._style
+                    self._refresh_table(tree, bind_path, columns_spec, style)
         
         # Update portrait
         self._update_portrait_display()
@@ -569,6 +665,10 @@ class CharacterWindow:
             try:
                 with open(filename, 'r', encoding='utf-8') as f:
                     data = json.load(f)
+                
+                # Validate and fill missing fields from default
+                default_char = self.spec_loader.get_default_character()
+                data = validate_and_fill(data, default_char)
                 
                 self.character_model.from_dict(data)
                 self.current_file = filename

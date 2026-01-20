@@ -160,6 +160,40 @@ def test_importer():
     print("✓ importer tests passed")
 
 
+def test_validator():
+    """Test validator functionality."""
+    print("Testing validator...")
+    
+    from uesrpg_sm.core.validator import validate_and_fill
+    
+    # Test missing key gets filled
+    default = {'name': 'Default', 'age': 0, 'stats': {'hp': 10}}
+    data = {'name': 'Test'}
+    result = validate_and_fill(data, default)
+    assert result.get('name') == 'Test', "Existing value should be preserved"
+    assert result.get('age') == 0, "Missing key should be filled from default"
+    assert result.get('stats', {}).get('hp') == 10, "Missing nested key should be filled"
+    
+    # Test type mismatch gets replaced
+    default2 = {'config': {'setting': 1}}
+    data2 = {'config': 'invalid'}  # Should be dict but is string
+    result2 = validate_and_fill(data2, default2)
+    assert isinstance(result2.get('config'), dict), "Type mismatch should be replaced with default"
+    assert result2.get('config', {}).get('setting') == 1, "Type mismatch replacement should have correct value"
+    
+    # Test unknown keys are preserved
+    default3 = {'known': 'value'}
+    data3 = {'known': 'test', 'unknown': 'extra'}
+    result3 = validate_and_fill(data3, default3)
+    assert result3.get('unknown') == 'extra', "Unknown keys should be preserved"
+    
+    # Test None data
+    result4 = validate_and_fill(None, {'name': 'Default'})
+    assert result4.get('name') == 'Default', "None data should return copy of default"
+    
+    print("✓ validator tests passed")
+
+
 def main():
     """Run all tests."""
     print("=" * 60)
@@ -171,6 +205,7 @@ def main():
         test_spec_loader()
         test_character_model()
         test_importer()
+        test_validator()
         
         print()
         print("=" * 60)
