@@ -3,7 +3,13 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import json
 import os
-from PIL import Image, ImageTk
+
+# Pillow is optional for portrait support
+try:
+    from PIL import Image, ImageTk
+    PILLOW_AVAILABLE = True
+except ImportError:
+    PILLOW_AVAILABLE = False
 
 
 class CharacterWindow:
@@ -384,8 +390,13 @@ class CharacterWindow:
         btn_frame = ttk.Frame(frame)
         btn_frame.grid(row=1, column=0, columnspan=2, pady=5)
         
-        ttk.Button(btn_frame, text="Add", command=lambda: self._table_add(tree, bind_path, columns_spec)).pack(side='left', padx=2)
-        ttk.Button(btn_frame, text="Delete", command=lambda: self._table_delete(tree, bind_path)).pack(side='left', padx=2)
+        # Store metadata with tree widget for callbacks
+        tree._bind_path = bind_path
+        tree._columns_spec = columns_spec
+        tree._style = style
+        
+        ttk.Button(btn_frame, text="Add", command=lambda: self._table_add(tree)).pack(side='left', padx=2)
+        ttk.Button(btn_frame, text="Delete", command=lambda: self._table_delete(tree)).pack(side='left', padx=2)
         
         # Load data into tree
         self._refresh_table(tree, bind_path, columns_spec, style)
@@ -415,14 +426,15 @@ class CharacterWindow:
                 tags = ('skill',) if style == 'skill' else ()
                 tree.insert('', 'end', values=values, tags=tags)
     
-    def _table_add(self, tree, bind_path, columns_spec):
+    def _table_add(self, tree):
         """Add a row to a table.
         
         Args:
-            tree: Treeview widget
-            bind_path: JSONPath binding
-            columns_spec: Column specifications
+            tree: Treeview widget with metadata
         """
+        bind_path = tree._bind_path
+        columns_spec = tree._columns_spec
+        
         # For MVP, just add an empty row
         data = self.character_model.get_value(bind_path)
         if not isinstance(data, list):
@@ -433,15 +445,17 @@ class CharacterWindow:
         data.append(new_row)
         
         self.character_model.set_value(bind_path, data)
-        self._refresh_table(tree, bind_path, columns_spec)
+        self._refresh_table(tree, bind_path, columns_spec, tree._style)
     
-    def _table_delete(self, tree, bind_path):
+    def _table_delete(self, tree):
         """Delete selected row from table.
         
         Args:
-            tree: Treeview widget
-            bind_path: JSONPath binding
+            tree: Treeview widget with metadata
         """
+        bind_path = tree._bind_path
+        columns_spec = tree._columns_spec
+        
         selection = tree.selection()
         if not selection:
             return
@@ -455,7 +469,7 @@ class CharacterWindow:
         if isinstance(data, list) and index < len(data):
             data.pop(index)
             self.character_model.set_value(bind_path, data)
-            self._refresh_table(tree, bind_path, tree['columns'])
+            self._refresh_table(tree, bind_path, columns_spec, tree._style)
     
     def _select_portrait(self):
         """Open dialog to select portrait from directory."""
@@ -509,6 +523,10 @@ class CharacterWindow:
         
         portrait_dir = self.spec_loader.get_portrait_dir()
         portrait_path = os.path.join(portrait_dir, portrait_file)
+        
+        if not PILLOW_AVAILABLE:
+            self.portrait_label.config(text=f"Portrait:\n{portrait_file}\n\n(Pillow not installed)")
+            return
         
         if os.path.exists(portrait_path):
             try:
