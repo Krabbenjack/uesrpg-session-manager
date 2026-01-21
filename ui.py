@@ -210,8 +210,9 @@ class CharacterWindowUI:
             self._build_main_panel(scrollable_frame, main_panel_config)
             
             # Enable mouse wheel scrolling
+            MOUSE_WHEEL_DELTA = 120
             def _on_mousewheel(event):
-                canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+                canvas.yview_scroll(int(-1*(event.delta/MOUSE_WHEEL_DELTA)), "units")
             canvas.bind_all("<MouseWheel>", _on_mousewheel)
     
     def _build_single_column_layout(self, parent, window_config):
@@ -626,7 +627,7 @@ class CharacterWindowUI:
                 value = self._get_widget_value(widget)
                 self._set_nested_value(state, bind_path, value)
             except Exception as e:
-                logger.error(f"Error getting value for {bind_path}: {e}")
+                logger.error(f"Failed to extract value from widget at {bind_path}: {e}")
         
         return state
     
@@ -684,7 +685,7 @@ class CharacterWindowUI:
                 if value is not None:
                     self._set_widget_value(widget, value)
             except Exception as e:
-                logger.debug(f"Could not set value for {bind_path}: {e}")
+                logger.warning(f"Failed to set widget value at {bind_path}: {e}")
     
     def _set_widget_value(self, widget, value):
         """Set value to a widget."""
