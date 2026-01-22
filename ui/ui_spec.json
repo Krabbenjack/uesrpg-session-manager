@@ -552,7 +552,7 @@
               {
                 "id": "weapons_block",
                 "title": "Weapons",
-                "layout": { "type": "grid", "columns": 2 },
+                "layout": { "type": "grid", "columns": 1 },
                 "widgets": [
                   {
                     "type": "table",
