@@ -16,6 +16,19 @@ import re
 
 logger = logging.getLogger(__name__)
 
+# Check PIL availability once at module level
+_PIL_AVAILABLE = False
+_PIL_IMAGE = None
+_PIL_IMAGETK = None
+
+try:
+    from PIL import Image, ImageTk
+    _PIL_AVAILABLE = True
+    _PIL_IMAGE = Image
+    _PIL_IMAGETK = ImageTk
+except ImportError:
+    pass
+
 
 class CharacterWindowUI:
     """Main Character Window UI - dynamically generated from spec."""
@@ -369,14 +382,13 @@ class CharacterWindowUI:
         bind_path = config.get('bind', '')
         placeholder_text = config.get('placeholder', 'No portrait')
         
-        # Try to import PIL for image support
-        try:
-            from PIL import Image, ImageTk
+        # Create label widget based on PIL availability
+        if _PIL_AVAILABLE:
             portrait_label = ttk.Label(portrait_frame, text=placeholder_text, anchor='center')
             portrait_label.pack(fill=tk.BOTH, expand=True)
             portrait_label._size = size
             portrait_label._has_pil = True
-        except ImportError:
+        else:
             # Fallback without PIL
             portrait_label = ttk.Label(portrait_frame, text=placeholder_text, anchor='center', 
                                       relief=tk.SUNKEN, background='#D0D0D0')
@@ -1029,20 +1041,18 @@ class CharacterWindowUI:
             return
         
         # Check if PIL is available
-        if not hasattr(label_widget, '_has_pil') or not label_widget._has_pil:
+        if not _PIL_AVAILABLE or not hasattr(label_widget, '_has_pil') or not label_widget._has_pil:
             # Fallback: show filename
             label_widget.config(text=Path(image_path).name)
             return
         
         try:
-            from PIL import Image, ImageTk
-            
             # Get target size
             target_size = getattr(label_widget, '_size', [320, 200])
             target_width, target_height = target_size
             
             # Load image
-            img = Image.open(image_path)
+            img = _PIL_IMAGE.open(image_path)
             
             # Calculate aspect ratios
             img_aspect = img.width / img.height
@@ -1059,10 +1069,10 @@ class CharacterWindowUI:
                 new_width = int(target_height * img_aspect)
             
             # Resize image
-            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            img = img.resize((new_width, new_height), _PIL_IMAGE.Resampling.LANCZOS)
             
             # Convert to PhotoImage
-            photo = ImageTk.PhotoImage(img)
+            photo = _PIL_IMAGETK.PhotoImage(img)
             
             # Update label
             label_widget.config(image=photo, text='')
