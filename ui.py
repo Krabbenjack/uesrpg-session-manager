@@ -14,6 +14,15 @@ from typing import Any, Dict, List, Optional, Tuple
 from copy import deepcopy
 import re
 
+# Import core functionality
+from core import (
+    deep_merge,
+    load_json_file,
+    save_json_file,
+    generate_preview,
+    merge_character_data,
+)
+
 logger = logging.getLogger(__name__)
 
 # Check PIL availability once at module level
@@ -1231,46 +1240,6 @@ class CharacterWindowUI:
             logger.error(f"Error resetting to defaults: {e}", exc_info=True)
             messagebox.showerror("Error", f"Failed to reset: {e}")
     
-    def deep_merge(self, base: Dict, overlay: Dict, overwrite: bool = True) -> Dict:
-        """
-        Deep merge two dictionaries.
-        
-        Args:
-            base: Base dictionary (e.g., default_character schema)
-            overlay: Overlay dictionary (e.g., imported data)
-            overwrite: If True, overlay values replace base values.
-                      If False, only fill missing/empty fields in base.
-        
-        Returns:
-            Merged dictionary
-        """
-        result = deepcopy(base)
-        
-        for key, value in overlay.items():
-            if key not in result:
-                # Key doesn't exist in base, add it
-                result[key] = deepcopy(value)
-            elif isinstance(value, dict) and isinstance(result[key], dict):
-                # Both are dicts, merge recursively
-                result[key] = self.deep_merge(result[key], value, overwrite)
-            elif isinstance(value, list) and isinstance(result[key], list):
-                # Both are lists
-                if overwrite:
-                    result[key] = deepcopy(value)
-                elif len(result[key]) == 0:
-                    # Only overwrite if base list is empty
-                    result[key] = deepcopy(value)
-            else:
-                # Scalar values
-                if overwrite:
-                    result[key] = deepcopy(value)
-                elif result[key] in ('', None):
-                    # Only overwrite if base value is empty string or None
-                    # Preserves legitimate falsy values like 0, False, []
-                    result[key] = deepcopy(value)
-        
-        return result
-    
     def load_character(self):
         """Load character from JSON file."""
         try:
@@ -1282,8 +1251,8 @@ class CharacterWindowUI:
             if not filename:
                 return
             
-            with open(filename, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+            # Use core function to load JSON
+            data = load_json_file(filename)
             
             self.character_data = data
             self.set_state(data)
@@ -1313,8 +1282,8 @@ class CharacterWindowUI:
             # Get current state
             state = self.get_state()
             
-            with open(filename, 'w', encoding='utf-8') as f:
-                json.dump(state, f, indent=2, ensure_ascii=False)
+            # Use core function to save JSON
+            save_json_file(filename, state)
             
             self.status_var.set(f"Saved: {Path(filename).name}")
             logger.info(f"Saved character to {filename}")
@@ -1395,19 +1364,15 @@ class CharacterWindowUI:
             if not filename:
                 return
             
-            # Load the JSON
-            with open(filename, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+            # Use core function to load JSON
+            data = load_json_file(filename)
             
             # Update dialog state
             self.dialog_state['selected_path'] = filename
             self.dialog_state['loaded_data'] = data
             
-            # Generate preview
-            preview_text = json.dumps(data, indent=2, ensure_ascii=False)
-            # Truncate if too large
-            if len(preview_text) > 2000:
-                preview_text = preview_text[:2000] + "\n... (truncated)"
+            # Use core function to generate preview
+            preview_text = generate_preview(data, max_length=2000)
             
             self.dialog_state['preview'] = preview_text
             
@@ -1432,8 +1397,8 @@ class CharacterWindowUI:
             loaded_data = self.dialog_state['loaded_data']
             overwrite = self.dialog_state.get('overwrite', True)
             
-            # Merge with deep_merge
-            merged_data = self.deep_merge(default_data, loaded_data, overwrite=overwrite)
+            # Use core function to merge character data with default schema
+            merged_data = merge_character_data(default_data, loaded_data, overwrite=overwrite)
             
             # Apply to UI (this might raise an exception)
             self.character_data = merged_data
