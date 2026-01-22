@@ -262,3 +262,252 @@ When reporting issues, please include:
 5. Steps to reproduce
 6. Expected vs actual behavior
 7. Screenshots if visual issue
+
+---
+
+# Character Import/Export Feature Tests
+
+## Prerequisites
+- All previous tests completed
+- At least one saved character JSON file available (e.g., `docs/charsheet_cass.json`)
+
+## Import/Export Menu Tests
+
+### ✅ Test 22: Menu Structure
+**Expected:** Import menu updated with new options
+
+- [ ] Menu bar has "Import" menu
+- [ ] "Import" menu contains "Import Character Data…" (renamed from "Import Base Data…")
+- [ ] "Import" menu contains "Export Character Data…" (new)
+
+### ✅ Test 23: Import Character Data Dialog
+**Expected:** Import dialog opens and displays correctly
+
+1. [ ] Click **Import → Import Character Data…**
+2. [ ] Dialog opens with title "Import Character Data"
+3. [ ] Dialog has "Choose JSON…" button
+4. [ ] Dialog has "Selected file" field (read-only, empty initially)
+5. [ ] Dialog has preview area (large text box, empty initially)
+6. [ ] Dialog has "Overwrite existing fields" checkbox (checked by default)
+7. [ ] Dialog has "Import" button
+8. [ ] Dialog has "Cancel" button
+
+### ✅ Test 24: Choose JSON File
+**Expected:** File picker and preview work correctly
+
+1. [ ] In import dialog, click **Choose JSON…**
+2. [ ] File picker opens
+3. [ ] Navigate to `docs/charsheet_cass.json` and select it
+4. [ ] Selected file path appears in "Selected file" field
+5. [ ] Preview area shows JSON content (pretty-printed)
+6. [ ] Preview is read-only (cannot edit)
+7. [ ] If JSON is large (>2000 chars), preview is truncated with "... (truncated)" message
+
+### ✅ Test 25: Import with Overwrite = True
+**Expected:** All fields are replaced with imported values
+
+1. [ ] Start with empty character (File → New)
+2. [ ] Manually enter: Name = "Test", Race = "Orc", XP Current = 100
+3. [ ] Click **Import → Import Character Data…**
+4. [ ] "Overwrite existing fields" checkbox is **checked**
+5. [ ] Choose `docs/charsheet_cass.json`
+6. [ ] Click **Import**
+7. [ ] Dialog closes
+8. [ ] Name is replaced with value from JSON (e.g., "Cassandra Silvershadow")
+9. [ ] Race is replaced with value from JSON (e.g., "Nord, vampire")
+10. [ ] XP Current is replaced with value from JSON
+11. [ ] All other fields populated from JSON
+12. [ ] Status bar shows "Imported: charsheet_cass.json"
+13. [ ] Success message appears: "Character data imported successfully"
+
+### ✅ Test 26: Import with Overwrite = False
+**Expected:** Only empty fields are filled, existing values preserved
+
+1. [ ] Start with empty character (File → New)
+2. [ ] Manually enter: Name = "Existing Name", Race = "Existing Race"
+3. [ ] Leave other fields empty
+4. [ ] Click **Import → Import Character Data…**
+5. [ ] **Uncheck** "Overwrite existing fields" checkbox
+6. [ ] Choose `docs/charsheet_cass.json`
+7. [ ] Click **Import**
+8. [ ] Dialog closes
+9. [ ] Name remains "Existing Name" (NOT overwritten)
+10. [ ] Race remains "Existing Race" (NOT overwritten)
+11. [ ] Empty fields are filled from JSON (skills, characteristics, etc.)
+12. [ ] Status bar shows "Imported: charsheet_cass.json"
+13. [ ] Success message appears
+
+### ✅ Test 27: Import Cancel
+**Expected:** Cancel closes dialog without changes
+
+1. [ ] Enter some data in character sheet
+2. [ ] Click **Import → Import Character Data…**
+3. [ ] Choose a JSON file
+4. [ ] Click **Cancel**
+5. [ ] Dialog closes
+6. [ ] No changes made to character sheet
+7. [ ] Original data still present
+
+### ✅ Test 28: Import Without Selecting File
+**Expected:** Warning shown if no file selected
+
+1. [ ] Click **Import → Import Character Data…**
+2. [ ] Do NOT click "Choose JSON…"
+3. [ ] Click **Import**
+4. [ ] Warning message appears: "No file selected"
+5. [ ] Dialog remains open
+
+### ✅ Test 29: Export Character Data
+**Expected:** Current character exported to JSON file
+
+1. [ ] Load a character (e.g., `docs/charsheet_cass.json`)
+2. [ ] Click **Import → Export Character Data…**
+3. [ ] Save file dialog opens
+4. [ ] Default extension is `.json`
+5. [ ] Enter filename (e.g., `test_export.json`)
+6. [ ] Click Save
+7. [ ] File is saved
+8. [ ] Status bar shows "Saved: test_export.json"
+9. [ ] Success message appears: "Character saved successfully"
+
+### ✅ Test 30: Verify Exported JSON Structure
+**Expected:** Exported JSON has all required keys including magic fields
+
+1. [ ] Export a character to `test_export.json`
+2. [ ] Open `test_export.json` in a text editor
+3. [ ] JSON is well-formatted with proper indentation
+4. [ ] **CRITICAL**: All magic-related keys exist even if empty:
+   - [ ] `"spells"` key exists (array)
+   - [ ] `"magic_skills"` key exists (array)
+   - [ ] `"rituals"` key exists (object or array)
+   - [ ] `"spellcasting"` key exists (object)
+5. [ ] Other expected keys present: `name`, `race`, `characteristics`, `skills`, etc.
+6. [ ] Values match what was displayed in the UI
+
+### ✅ Test 31: Round-Trip Import/Export
+**Expected:** Data survives export → import cycle without loss
+
+1. [ ] Load `docs/charsheet_cass.json`
+2. [ ] Export to `roundtrip_1.json`
+3. [ ] File → New (clear character)
+4. [ ] Import `roundtrip_1.json` with Overwrite = True
+5. [ ] All data restored exactly as before
+6. [ ] Export to `roundtrip_2.json`
+7. [ ] Compare `roundtrip_1.json` and `roundtrip_2.json`:
+   - [ ] Files are identical (or functionally equivalent)
+   - [ ] No data loss or corruption
+
+### ✅ Test 32: Import Incomplete JSON
+**Expected:** Missing keys filled with defaults
+
+1. [ ] Create a minimal JSON file `minimal.json`:
+   ```json
+   {
+     "name": "Minimal Character",
+     "race": "Human"
+   }
+   ```
+2. [ ] Click **Import → Import Character Data…**
+3. [ ] Choose `minimal.json`
+4. [ ] Overwrite = True, click Import
+5. [ ] Name and race imported correctly
+6. [ ] All missing keys filled with defaults from schema
+7. [ ] Export the character to verify:
+   - [ ] `spells`, `magic_skills`, `rituals`, `spellcasting` keys exist
+   - [ ] All default schema keys present
+
+### ✅ Test 33: Import Invalid JSON
+**Expected:** Error handled gracefully
+
+1. [ ] Create invalid JSON file `invalid.json`:
+   ```
+   { "name": "Test", invalid syntax here }
+   ```
+2. [ ] Click **Import → Import Character Data…**
+3. [ ] Choose `invalid.json`
+4. [ ] Error message appears: "Failed to load JSON: ..."
+5. [ ] Application does not crash
+6. [ ] Dialog remains open
+
+### ✅ Test 34: stat_block Warning Elimination
+**Expected:** No "Unsupported widget type: stat_block" warnings
+
+1. [ ] Close application if running
+2. [ ] Start application from terminal: `python main.py`
+3. [ ] Monitor terminal output during:
+   - [ ] Application startup
+   - [ ] Loading the character sheet
+   - [ ] Opening Details panel
+   - [ ] Switching between tabs
+4. [ ] **Verify NO warnings**: "Unsupported widget type: stat_block"
+5. [ ] All stat blocks (HP, MP, Speed, LP, IR, AP, etc.) display correctly
+6. [ ] Layout looks correct with no missing stat displays
+
+### ✅ Test 35: Multiple Imports in Sequence
+**Expected:** Can import multiple times without issues
+
+1. [ ] Import `docs/charsheet_cass.json`
+2. [ ] Verify data loaded
+3. [ ] Import a different character JSON (or same file again)
+4. [ ] Verify data replaced/merged correctly
+5. [ ] Import a third time
+6. [ ] No memory leaks or slowdowns
+7. [ ] Dialog continues to work correctly
+
+### ✅ Test 36: Import/Export with Special Characters
+**Expected:** Unicode and special characters handled correctly
+
+1. [ ] Enter character name with special characters: "Ñörmân Drågøñ"
+2. [ ] Export to `unicode_test.json`
+3. [ ] Open file, verify special characters saved correctly
+4. [ ] File → New
+5. [ ] Import `unicode_test.json`
+6. [ ] Special characters restored correctly: "Ñörmân Drågøñ"
+
+### ✅ Test 37: Import/Export Large Character
+**Expected:** Performance remains acceptable
+
+1. [ ] Create/load character with extensive data:
+   - [ ] 50+ skills
+   - [ ] 20+ spells
+   - [ ] 30+ items
+   - [ ] Long text in notes fields
+2. [ ] Export to `large_character.json`
+3. [ ] Export completes in reasonable time (< 5 seconds)
+4. [ ] File size is reasonable (< 1 MB)
+5. [ ] Import `large_character.json`
+6. [ ] Import completes in reasonable time (< 5 seconds)
+7. [ ] All data imported correctly
+8. [ ] Application remains responsive
+
+## Final Import/Export Verification
+
+### ✅ Test 38: Complete Import/Export Workflow
+**Expected:** Full workflow succeeds without errors
+
+1. [ ] File → New
+2. [ ] Create new character:
+   - [ ] Enter name, race, size
+   - [ ] Edit characteristics
+   - [ ] Add 5 skills
+   - [ ] Show Details, add gear item
+   - [ ] Add spell in Magic tab
+3. [ ] Export to `workflow_test.json`
+4. [ ] Close application
+5. [ ] Restart application
+6. [ ] Import `workflow_test.json` with Overwrite = True
+7. [ ] All data restored correctly
+8. [ ] No errors or warnings in console
+
+---
+
+## Success Criteria for Import/Export
+
+✅ All import/export tests (22-38) passed
+✅ No "Unsupported widget type: stat_block" warnings
+✅ Exported JSON contains all magic-related keys
+✅ Data integrity maintained through import/export cycles
+✅ Error handling works correctly for invalid inputs
+✅ UI remains stable and responsive
+✅ Console output is clean (no unexpected warnings/errors)
+

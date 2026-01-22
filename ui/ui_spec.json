@@ -114,7 +114,8 @@
     {
       "label": "Import",
       "items": [
-        { "label": "Import Base Data…", "command": "import_base_data" }
+        { "label": "Import Character Data…", "command": "import_character_data" },
+        { "label": "Export Character Data…", "command": "export_character_data" }
       ]
     }
   ],
@@ -696,7 +697,7 @@
     {
       "id": "import_window",
       "type": "dialog",
-      "title": "Import Base Data",
+      "title": "Import Character Data",
       "layout": { "type": "grid", "columns": 2 },
       "widgets": [
         { "type": "button", "text": "Choose JSON…", "command": "import_choose_json", "colspan": 2 },

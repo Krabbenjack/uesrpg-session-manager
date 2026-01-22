@@ -615,6 +615,10 @@ class CharacterWindowUI:
                         self._create_image_widget(parent, widget_config, row, col, colspan)
                     elif widget_type == 'label':
                         self._create_label_widget(parent, widget_config, row, col, colspan)
+                    elif widget_type == 'stat_block':
+                        self._create_stat_block_widget(parent, widget_config, row, col, colspan)
+                    elif widget_type == 'preview':
+                        self._create_preview_widget(parent, widget_config, row, col, colspan)
                     else:
                         logger.warning(f"Unsupported widget type: {widget_type}")
                         self._create_placeholder_widget(parent, widget_config, row, col, colspan)
@@ -835,6 +839,19 @@ class CharacterWindowUI:
         label = ttk.Label(parent, text=text, wraplength=200)
         label.grid(row=row, column=col, columnspan=colspan, sticky='w', padx=5, pady=2)
     
+    def _create_preview_widget(self, parent, config, row, col, colspan):
+        """Create a preview widget (read-only text area for displaying data)."""
+        bind_path = config.get('bind', '')
+        height = config.get('height', 10)
+        
+        # Create preview text area
+        preview_text = scrolledtext.ScrolledText(parent, height=height, wrap=tk.WORD, state='disabled')
+        preview_text.grid(row=row, column=col, columnspan=colspan, sticky='nsew', padx=5, pady=2)
+        
+        # Register widget for data binding
+        if bind_path:
+            self.widgets[bind_path] = preview_text
+    
     def _create_placeholder_widget(self, parent, config, row, col, colspan):
         """Create a placeholder for unsupported widgets."""
         label_text = config.get('label', 'Unsupported')
@@ -883,6 +900,28 @@ class CharacterWindowUI:
         label = ttk.Label(parent, text=text, wraplength=200)
         label.pack(padx=5, pady=5, anchor=tk.W)
     
+    def _create_stat_block_widget(self, parent, config, row, col, colspan):
+        """Create a stat block widget for grid layout (large value + small label)."""
+        label_text = config.get('label', '')
+        bind_path = config.get('bind', '')
+        
+        # Create a frame for the stat block
+        stat_frame = ttk.Frame(parent)
+        stat_frame.grid(row=row, column=col, columnspan=colspan, sticky='nsew', padx=5, pady=2)
+        
+        # Label on top (small)
+        label = ttk.Label(stat_frame, text=label_text, font=('TkDefaultFont', 8))
+        label.pack()
+        
+        # Value entry below (larger)
+        value_entry = ttk.Entry(stat_frame, width=6, font=('TkDefaultFont', 10, 'bold'),
+                               justify='center')
+        value_entry.pack()
+        
+        # Register widget for data binding
+        if bind_path:
+            self.widgets[bind_path] = value_entry
+    
     def _handle_command(self, command_name: str):
         """Handle menu/button commands."""
         logger.info(f"Command: {command_name}")
@@ -900,8 +939,16 @@ class CharacterWindowUI:
                 self.root.quit()
             elif command_name == 'select_portrait_from_dir':
                 self.select_portrait()
-            elif command_name == 'import_base_data':
-                messagebox.showinfo("Info", "Import functionality not yet implemented")
+            elif command_name == 'import_base_data' or command_name == 'import_character_data':
+                self.show_import_dialog()
+            elif command_name == 'export_character_data':
+                self.export_character_data()
+            elif command_name == 'import_choose_json':
+                self.import_choose_json()
+            elif command_name == 'import_apply':
+                self.import_apply()
+            elif command_name == 'dialog_close':
+                self.close_dialog()
             else:
                 logger.warning(f"Unknown command: {command_name}")
                 messagebox.showwarning("Warning", f"Command not implemented: {command_name}")
@@ -996,8 +1043,15 @@ class CharacterWindowUI:
             else:
                 widget.insert(0, str(value) if value is not None else '')
         elif isinstance(widget, scrolledtext.ScrolledText):
+            # Enable widget temporarily if disabled
+            original_state = widget.cget('state')
+            if original_state == 'disabled':
+                widget.config(state='normal')
             widget.delete('1.0', tk.END)
             widget.insert('1.0', str(value) if value is not None else '')
+            # Restore original state
+            if original_state == 'disabled':
+                widget.config(state='disabled')
         elif isinstance(widget, ttk.Spinbox):
             widget.delete(0, tk.END)
             widget.insert(0, str(value) if value is not None else '0')
@@ -1177,6 +1231,46 @@ class CharacterWindowUI:
             logger.error(f"Error resetting to defaults: {e}", exc_info=True)
             messagebox.showerror("Error", f"Failed to reset: {e}")
     
+    def deep_merge(self, base: Dict, overlay: Dict, overwrite: bool = True) -> Dict:
+        """
+        Deep merge two dictionaries.
+        
+        Args:
+            base: Base dictionary (e.g., default_character schema)
+            overlay: Overlay dictionary (e.g., imported data)
+            overwrite: If True, overlay values replace base values.
+                      If False, only fill missing/empty fields in base.
+        
+        Returns:
+            Merged dictionary
+        """
+        result = deepcopy(base)
+        
+        for key, value in overlay.items():
+            if key not in result:
+                # Key doesn't exist in base, add it
+                result[key] = deepcopy(value)
+            elif isinstance(value, dict) and isinstance(result[key], dict):
+                # Both are dicts, merge recursively
+                result[key] = self.deep_merge(result[key], value, overwrite)
+            elif isinstance(value, list) and isinstance(result[key], list):
+                # Both are lists
+                if overwrite:
+                    result[key] = deepcopy(value)
+                elif len(result[key]) == 0:
+                    # Only overwrite if base list is empty
+                    result[key] = deepcopy(value)
+            else:
+                # Scalar values
+                if overwrite:
+                    result[key] = deepcopy(value)
+                elif result[key] in ('', None):
+                    # Only overwrite if base value is empty string or None
+                    # Preserves legitimate falsy values like 0, False, []
+                    result[key] = deepcopy(value)
+        
+        return result
+    
     def load_character(self):
         """Load character from JSON file."""
         try:
@@ -1228,6 +1322,163 @@ class CharacterWindowUI:
         except Exception as e:
             logger.error(f"Error saving character: {e}", exc_info=True)
             messagebox.showerror("Error", f"Failed to save character: {e}")
+    
+    def export_character_data(self):
+        """
+        Export character data to JSON file.
+        
+        This is a wrapper around save_character_as() to provide a distinct
+        menu entry for export operations. Per requirements, it uses the same
+        underlying save functionality but maintains menu separation for clarity.
+        """
+        self.save_character_as()
+    
+    def show_import_dialog(self):
+        """Show the import character data dialog."""
+        try:
+            # Find the import_window spec
+            import_window_spec = None
+            for window in self.spec.get('windows', []):
+                if window.get('id') == 'import_window':
+                    import_window_spec = window
+                    break
+            
+            if not import_window_spec:
+                messagebox.showerror("Error", "Import window spec not found")
+                return
+            
+            # Create dialog
+            self.import_dialog = tk.Toplevel(self.root)
+            self.import_dialog.title(import_window_spec.get('title', 'Import Character Data'))
+            self.import_dialog.transient(self.root)
+            self.import_dialog.grab_set()
+            
+            # Initialize dialog state
+            self.dialog_state = {
+                'selected_path': '',
+                'preview': '',
+                'overwrite': True,
+                'loaded_data': None
+            }
+            
+            # Store original widgets dict and create a new one for dialog
+            self.original_widgets = self.widgets
+            self.dialog_widgets = {}
+            self.widgets = self.dialog_widgets
+            
+            # Build dialog widgets
+            layout = import_window_spec.get('layout', {'type': 'grid', 'columns': 2})
+            widgets_config = import_window_spec.get('widgets', [])
+            self._build_widgets_with_layout(self.import_dialog, widgets_config, layout)
+            
+            # Set dialog state
+            self._set_dialog_state(self.dialog_state)
+            
+            # Restore original widgets (dialog widgets are in self.dialog_widgets)
+            self.widgets = self.original_widgets
+            
+        except Exception as e:
+            logger.error(f"Error showing import dialog: {e}", exc_info=True)
+            messagebox.showerror("Error", f"Failed to show import dialog: {e}")
+            # Restore widgets on error
+            if hasattr(self, 'original_widgets'):
+                self.widgets = self.original_widgets
+    
+    def import_choose_json(self):
+        """Choose a JSON file for import."""
+        try:
+            filename = filedialog.askopenfilename(
+                title="Choose Character JSON",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+            )
+            
+            if not filename:
+                return
+            
+            # Load the JSON
+            with open(filename, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            # Update dialog state
+            self.dialog_state['selected_path'] = filename
+            self.dialog_state['loaded_data'] = data
+            
+            # Generate preview
+            preview_text = json.dumps(data, indent=2, ensure_ascii=False)
+            # Truncate if too large
+            if len(preview_text) > 2000:
+                preview_text = preview_text[:2000] + "\n... (truncated)"
+            
+            self.dialog_state['preview'] = preview_text
+            
+            # Update dialog widgets
+            self._set_dialog_state(self.dialog_state)
+            
+        except Exception as e:
+            logger.error(f"Error choosing JSON: {e}", exc_info=True)
+            messagebox.showerror("Error", f"Failed to load JSON: {e}")
+    
+    def import_apply(self):
+        """Apply the import with the selected options."""
+        try:
+            if not self.dialog_state.get('loaded_data'):
+                messagebox.showwarning("Warning", "No file selected")
+                return
+            
+            # Get default character schema
+            default_data = self.spec.get('data', {}).get('default_character', {})
+            
+            # Get loaded data and overwrite setting
+            loaded_data = self.dialog_state['loaded_data']
+            overwrite = self.dialog_state.get('overwrite', True)
+            
+            # Merge with deep_merge
+            merged_data = self.deep_merge(default_data, loaded_data, overwrite=overwrite)
+            
+            # Apply to UI (this might raise an exception)
+            self.character_data = merged_data
+            self.set_state(merged_data)
+            
+            # Only close dialog and restore widgets after successful state application
+            # Restore original widgets
+            self.widgets = self.original_widgets
+            
+            # Close dialog
+            self.import_dialog.destroy()
+            
+            # Update status
+            filename = Path(self.dialog_state['selected_path']).name
+            self.status_var.set(f"Imported: {filename}")
+            logger.info(f"Imported character from {self.dialog_state['selected_path']}")
+            messagebox.showinfo("Success", "Character data imported successfully")
+            
+        except Exception as e:
+            logger.error(f"Error importing character: {e}", exc_info=True)
+            messagebox.showerror("Error", f"Failed to import character: {e}")
+            # Restore widgets on error
+            if hasattr(self, 'original_widgets'):
+                self.widgets = self.original_widgets
+            if hasattr(self, 'original_widgets'):
+                self.widgets = self.original_widgets
+    
+    def close_dialog(self):
+        """Close the current dialog."""
+        try:
+            if hasattr(self, 'import_dialog'):
+                # Restore original widgets
+                if hasattr(self, 'original_widgets'):
+                    self.widgets = self.original_widgets
+                self.import_dialog.destroy()
+        except Exception as e:
+            logger.error(f"Error closing dialog: {e}", exc_info=True)
+    
+    def _set_dialog_state(self, state: Dict):
+        """Set values in dialog widgets from state dict."""
+        for bind_path, value in state.items():
+            widget_path = f"$dialog.{bind_path}"
+            if widget_path in self.dialog_widgets:
+                widget = self.dialog_widgets[widget_path]
+                self._set_widget_value(widget, value)
     
     def select_portrait(self):
         """Select portrait from directory."""
