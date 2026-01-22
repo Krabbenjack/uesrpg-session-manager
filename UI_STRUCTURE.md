@@ -2,6 +2,8 @@
 
 This document shows the visual structure of the dynamically generated UI.
 
+## New Character Sheet Dashboard (Primary View)
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ UESRPG Session Manager                                          [_][□][×]│
@@ -13,67 +15,81 @@ This document shows the visual structure of the dynamically generated UI.
 │  ├─ Save As…                                                            │
 │  ├─────────                                                              │
 │  └─ Exit                                                                 │
-├─────────┬───────────────────────────────────────────────────────────────┤
-│         │ ┌─ Core ──┬─ Combat & Skills ─┬─ Gear ─┬─ Magic ─┐           │
-│ ┌───────┴─┴─────────┴───────────────────┴────────┴─────────┘           │
-│ │ Portrait      │                                                        │
-│ │               │ ╔═══════════════════════════════════════════════════╗ │
-│ │  ┌─────────┐  │ ║ Header                                            ║ │
-│ │  │ No      │  │ ║ ┌─────────────┬───────┬────────────┬────────────┐ ║ │
-│ │  │ portrait│  │ ║ │ Name:       │ Size: │ XP (cur):  │ XP (tot):  │ ║ │
-│ │  │ selected│  │ ║ │ [Entry]     │[Entry]│ [Spinbox]  │ [Spinbox]  │ ║ │
-│ │  │         │  │ ║ ├─────────────┴───────┴────────────┴────────────┤ ║ │
-│ │  └─────────┘  │ ║ │ Race: [Entry]  Elite Adv: [Entry]             │ ║ │
-│ │               │ ║ │ Birthsign (category): [Entry]                  │ ║ │
-│ │ [Select       │ ║ │ Birthsign (sign): [Entry]  ☐ Star-Cursed      │ ║ │
-│ │  Portrait…]   │ ║ │ Favored: [Tags] Lucky #s: [CSV] Unlucky: [CSV]│ ║ │
-│ │               │ ║ └────────────────────────────────────────────────┘ ║ │
-│ │ Put images    │ ╠═══════════════════════════════════════════════════╣ │
-│ │ into assets/  │ ║ Characteristics                                   ║ │
-│ │ portraits     │ ║ ┌────┬───────┬───────┬─────┐                      ║ │
-│ │ (png/jpg/gif) │ ║ │Abbr│ Score │ Bonus │ Fav │                      ║ │
-│ │               │ ║ ├────┼───────┼───────┼─────┤                      ║ │
-│ └───────────────┘ ║ │Str │ [___] │ [___] │ [ ] │                      ║ │
-│                   ║ │End │ [___] │ [___] │ [ ] │                      ║ │
-│                   ║ │Ag  │ [___] │ [___] │ [ ] │                      ║ │
-│                   ║ │Int │ [___] │ [___] │ [ ] │                      ║ │
-│                   ║ │Wp  │ [___] │ [___] │ [ ] │                      ║ │
-│                   ║ │Prc │ [___] │ [___] │ [ ] │                      ║ │
-│                   ║ │Prs │ [___] │ [___] │ [ ] │                      ║ │
-│                   ║ │Lck │ [___] │ [___] │ [ ] │                      ║ │
-│                   ║ └────┴───────┴───────┴─────┘                      ║ │
-│                   ║                                                    ║ │
-│                   ║ SB EB AB IB WB PcB PsB LB                         ║ │
-│                   ║ [0][0][0][0][0][0] [0] [0]                        ║ │
-│                   ╠═══════════════════════════════════════════════════╣ │
-│                   ║ Attributes                                        ║ │
-│                   ║ HP(cur)[__] HP(max)[__] MP(cur)[__] MP(max)[__]  ║ │
-│                   ║ WT(cur)[__] WT(max)[__] SP(cur)[__] SP(max)[__]  ║ │
-│                   ║ Speed[__]  LP(cur)[__]  LP(max)[__]  IR[__]      ║ │
-│                   ║ AP(cur)[__] AP(max)[__] Linguistics[__] ENC[__]  ║ │
-│                   ║ ENC(max)[__]  CR[__]                              ║ │
-│                   ╠═══════════════════════════════════════════════════╣ │
-│                   ║ Languages & Bonds                                 ║ │
-│                   ║ Languages: [Tags - comma-separated]               ║ │
-│                   ║ Bonds: [Tags - comma-separated]                   ║ │
-│                   ╠═══════════════════════════════════════════════════╣ │
-│                   ║ Wounds / Conditions / Size                        ║ │
-│                   ║ ┌──────────────┬──────────────┬──────────────┐    ║ │
-│                   ║ │ Wounds       │ Conditions   │ Size         │    ║ │
-│                   ║ │ [          ] │ [          ] │ [Entry]      │    ║ │
-│                   ║ │ [Textarea  ] │ [Textarea  ] │              │    ║ │
-│                   ║ │ [          ] │ [          ] │              │    ║ │
-│                   ║ └──────────────┴──────────────┴──────────────┘    ║ │
-│                   ╚═══════════════════════════════════════════════════╝ │
-│                   ▲                                                      │
-│                   ║  [Scrollable Content]                               │
-│                   ▼                                                      │
-├──────────────────────────────────────────────────────────────────────────┤
+├─────────────────────────────────────────────────────────────────────────┤
+│ ╔═══════════════════════ HEADER BAND ══════════════════════════════════╗│
+│ ║ ┌──────────────────┐  ╔════════════════════════════════════════════╗ ║│
+│ ║ │ Portrait         │  ║ Identity                                   ║ ║│
+│ ║ │                  │  ║ ┌────────────┬────────┬────────┬─────────┐ ║ ║│
+│ ║ │   320 × 200      │  ║ │ Name:      │ Race:  │ Size:  │         │ ║ ║│
+│ ║ │                  │  ║ │ [Entry]    │[Entry] │[Entry] │         │ ║ ║│
+│ ║ │   (always        │  ║ ├────────────┴────────┴────────┴─────────┤ ║ ║│
+│ ║ │    visible)      │  ║ │ Birthsign (category): [Entry]          │ ║ ║│
+│ ║ │                  │  ║ │ Birthsign (sign): [Entry] ☐ Star-Cursed│ ║ ║│
+│ ║ └──────────────────┘  ║ │ Elite Adv.: [Entry]                    │ ║ ║│
+│ ║ [Select Portrait…]    ║ │ XP (cur): [___]  XP (tot): [___]       │ ║ ║│
+│ ║                       ║ └────────────────────────────────────────┘ ║ ║│
+│ ║                       ╚════════════════════════════════════════════╝ ║│
+│ ╚═══════════════════════════════════════════════════════════════════════╝│
+│ ╔═══════════════════════ CORE BAND (3 Columns) ════════════════════════╗│
+│ ║ ┌────────────────┐ ┌──────────────────┐ ┌────────────────────────┐ ║│
+│ ║ │ Attributes     │ │ Derived Stats    │ │ Combat Quick Block     │ ║│
+│ ║ ├────┬───┬───┬──┤ ├────┬─────┬───────┤ ├────────────────────────┤ ║│
+│ ║ │Abbr│Sco│Bon│Fv││ │ HP │ MP  │ WT    │ │ Armor (Head/Body/Leg)  │ ║│
+│ ║ ├────┼───┼───┼──┤│ │(cur│(cur)│(cur)  │ │ ┌────┬──┬───┐          │ ║│
+│ ║ │Str │[_]│[_]│[]││ │max)│(max)│(max)  │ │ │Head│AR│ENC│          │ ║│
+│ ║ │End │[_]│[_]│[]││ ├────┼─────┼───────┤ │ │Body│AR│ENC│          │ ║│
+│ ║ │Ag  │[_]│[_]│[]││ │ SP │ LP  │ Speed │ │ │Leg │AR│ENC│          │ ║│
+│ ║ │Int │[_]│[_]│[]││ │(cur│(cur)│       │ │ └────┴──┴───┘          │ ║│
+│ ║ │Wp  │[_]│[_]│[]││ │max)│(max)│       │ │                        │ ║│
+│ ║ │Prc │[_]│[_]│[]││ ├────┼─────┼───────┤ │ Combat Style:          │ ║│
+│ ║ │Prs │[_]│[_]│[]││ │ IR │ AP  │ Ling. │ │ [Entry]                │ ║│
+│ ║ │Lck │[_]│[_]│[]││ │    │(cur)│       │ │                        │ ║│
+│ ║ └────┴───┴───┴──┘│ │    │(max)│       │ │                        │ ║│
+│ ║                  │ ├────┼─────┼───────┤ │                        │ ║│
+│ ║ Base Bonuses     │ │ENC │ENC  │  CR   │ │                        │ ║│
+│ ║ SB EB AB IB WB   │ │(cur│(max)│       │ │                        │ ║│
+│ ║ [_][_][_][_][_]  │ └────┴─────┴───────┘ │                        │ ║│
+│ ║ PcB PsB LB       │                      │                        │ ║│
+│ ║ [_] [_] [_]      │                      │                        │ ║│
+│ ║                  │                      │                        │ ║│
+│ ║                  │                      │                        │ ║│
+│ └──────────────────┘ └──────────────────┘ └────────────────────────┘ ║│
+│ ╚═══════════════════════════════════════════════════════════════════════╝│
+│ ╔═══════════════════════ CONTENT BAND ═════════════════════════════════╗│
+│ ║ ┌─────────────────────────────────────────────────────────────────┐ ║│
+│ ║ │ Skills                                                          │ ║│
+│ ║ ├──────────────────────┬──────┬───────┬────┐                     │ ║│
+│ ║ │ Skill                │ Rank │ Bonus │ TN │                     │ ║│
+│ ║ ├──────────────────────┼──────┼───────┼────┤                     │ ║│
+│ ║ │ Athletics (Ag, End)  │ N    │ +25   │ 50 │                     │ ║│
+│ ║ │ Smithing (Str, End)  │ A    │ +35   │ 60 │                     │ ║│
+│ ║ │ ...                  │ ...  │ ...   │... │                     │ ║│
+│ ║ └──────────────────────┴──────┴───────┴────┘                     │ ║│
+│ ║ [Add] [Edit] [Delete]                                            │ ║│
+│ ╚═══════════════════════════════════════════════════════════════════════╝│
+├─────────────────────────────────────────────────────────────────────────┤
+│ ▶ Show Details (Gear, Magic, Notes...)                                 │
+├─────────────────────────────────────────────────────────────────────────┤
 │ Ready                                                                    │
-└──────────────────────────────────────────────────────────────────────────┘
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Tab Structure
+## Details Panel (Secondary View - Toggled)
+
+When "Show Details" is clicked, the notebook tabs expand below:
+
+```
+├─────────────────────────────────────────────────────────────────────────┤
+│ ▼ Hide Details (Gear, Magic, Notes...)                                 │
+├─────────────────────────────────────────────────────────────────────────┤
+│ ┌─ Core ──┬─ Combat & Skills ─┬─ Gear ─┬─ Magic ─┐                    │
+│ │                                                                        │
+│ │ [Tab content with sections...]                                        │
+│ │                                                                        │
+│ └────────────────────────────────────────────────────────────────────────│
+```
+
+## Details Tab Structure
 
 ### Tab 1: Core
 - Header (Name, Size, XP, Race, Elite Adv, Birthsign, Favored, Lucky Numbers)
@@ -106,6 +122,54 @@ This document shows the visual structure of the dynamically generated UI.
 - Spellcasting (textarea)
 - Spells Table (with Add/Edit/Delete)
 - Specializations (textarea)
+
+## New Container Widgets
+
+### Stat Block
+```
+  Label
+ ┌─────┐
+ │ 100 │  ← Large value (bold)
+ └─────┘
+```
+
+### Portrait Box
+```
+┌──────────────────┐
+│  Portrait        │
+│                  │
+│    320 × 200     │
+│                  │
+│  (fixed size)    │
+└──────────────────┘
+[Select Portrait…]
+```
+
+### Layout Row (Horizontal)
+```
+┌─────────┐ ┌─────────┐ ┌─────────┐
+│ Widget1 │ │ Widget2 │ │ Widget3 │
+└─────────┘ └─────────┘ └─────────┘
+```
+
+### Layout Col (Vertical)
+```
+┌─────────┐
+│ Widget1 │
+├─────────┤
+│ Widget2 │
+├─────────┤
+│ Widget3 │
+└─────────┘
+```
+
+### Sheet Grid (N columns)
+```
+┌──────────┐ ┌──────────┐ ┌──────────┐
+│ Column 1 │ │ Column 2 │ │ Column 3 │
+│          │ │          │ │          │
+└──────────┘ └──────────┘ └──────────┘
+```
 
 ## Widget Examples
 
@@ -173,16 +237,19 @@ From ui_spec.json:
 
 ## Key Features Visible in UI
 
-1. **Two-column layout**: Portrait panel (left) + Main content (right)
-2. **Tabbed interface**: 4 tabs for organized content
-3. **Sections**: Each tab has multiple labeled sections
-4. **Mixed widgets**: Entry, spinbox, checkbox, textarea, tags, tables
-5. **Scrolling**: Main content area scrolls vertically
-6. **Status bar**: Shows current status at bottom
-7. **Menu bar**: File and Import menus
-8. **Consistent spacing**: 8px horizontal, 6px vertical padding
-9. **Resizable window**: Minimum 980x640, default 1100x720
-10. **Dynamic generation**: All from ui_spec.json!
+1. **Character Sheet Dashboard**: Portrait header + core stats + skills (always visible)
+2. **No sidebar**: Portrait moved to header (320×200 fixed size)
+3. **Details toggle**: Show/hide button for notebook tabs (Gear, Magic, Notes)
+4. **Three-band layout**: Header / Core / Content structure
+5. **Stat blocks**: Large values with small labels for quick reading
+6. **Sections**: Each band has labeled containers
+7. **Mixed widgets**: Entry, spinbox, checkbox, textarea, tags, tables, stat blocks
+8. **Scrolling**: Main content area scrolls vertically
+9. **Status bar**: Shows current status at bottom
+10. **Menu bar**: File and Import menus
+11. **Consistent spacing**: 8px horizontal, 6px vertical padding
+12. **Resizable window**: Minimum 980x640, default 1100x720
+13. **Dynamic generation**: All from ui_spec.json!
 
 ## Data Flow
 

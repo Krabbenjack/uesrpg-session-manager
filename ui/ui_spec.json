@@ -118,44 +118,208 @@
       ]
     }
   ],
+  "_comment_windows": "Character window now uses 'sheet_view' as primary view (dashboard with portrait header + core stats + skills). 'details_panel' contains the notebook tabs for secondary data (gear/magic/etc). The old 'left_panel' sidebar is removed - portrait is now in the sheet header.",
   "windows": [
     {
       "id": "character_window",
       "type": "main",
       "title": "Character",
-      "layout": {
-        "type": "grid",
-        "columns": [
-          { "id": "left", "weight": 0, "min": 220 },
-          { "id": "main", "weight": 1, "min": 760 }
-        ]
+      "sheet_view": {
+        "type": "sheet",
+        "header": {
+          "type": "layout_row",
+          "widgets": [
+            {
+              "type": "portrait_box",
+              "id": "portrait_display",
+              "bind": "$.portrait.file",
+              "size": [320, 200],
+              "placeholder": "No portrait selected",
+              "button_text": "Select Portrait…",
+              "command": "select_portrait_from_dir"
+            },
+            {
+              "type": "layout_col",
+              "widgets": [
+                {
+                  "type": "group",
+                  "title": "Identity",
+                  "layout": { "type": "grid", "columns": 4 },
+                  "widgets": [
+                    { "type": "field", "label": "Name", "bind": "$.name", "widget": "entry", "colspan": 2 },
+                    { "type": "field", "label": "Race", "bind": "$.race", "widget": "entry", "colspan": 1 },
+                    { "type": "field", "label": "Size", "bind": "$.size", "widget": "entry", "colspan": 1 },
+                    { "type": "field", "label": "Birthsign (category)", "bind": "$.birthsign.category", "widget": "entry", "colspan": 2 },
+                    { "type": "field", "label": "Birthsign (sign)", "bind": "$.birthsign.sign", "widget": "entry", "colspan": 1 },
+                    { "type": "field", "label": "Star-Cursed", "bind": "$.birthsign.star_cursed", "widget": "check", "colspan": 1 },
+                    { "type": "field", "label": "Elite Adv.", "bind": "$.elite_adv", "widget": "entry", "colspan": 2 },
+                    { "type": "field", "label": "XP (cur)", "bind": "$.xp.current", "widget": "spin_int", "min": 0, "max": 999999, "colspan": 1 },
+                    { "type": "field", "label": "XP (tot)", "bind": "$.xp.total", "widget": "spin_int", "min": 0, "max": 999999, "colspan": 1 }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "core": {
+          "type": "sheet_grid",
+          "columns": 3,
+          "widgets": [
+            {
+              "type": "group",
+              "title": "Attributes",
+              "layout": { "type": "grid", "columns": 4 },
+              "widgets": [
+                {
+                  "type": "table_inline",
+                  "id": "characteristics_inline",
+                  "bind": "$.characteristics",
+                  "columns": [
+                    { "key": "abbr", "label": "Abbr", "width": 6, "readonly": true },
+                    { "key": "score", "label": "Score", "width": 6 },
+                    { "key": "bonus", "label": "Bonus", "width": 6 },
+                    { "key": "favored", "label": "Fav", "width": 4, "widget": "check" }
+                  ],
+                  "row_order": ["Str", "End", "Ag", "Int", "Wp", "Prc", "Prs", "Lck"],
+                  "style": "base",
+                  "colspan": 4
+                },
+                {
+                  "type": "stat_block",
+                  "label": "SB",
+                  "bind": "$.base_bonuses.SB"
+                },
+                {
+                  "type": "stat_block",
+                  "label": "EB",
+                  "bind": "$.base_bonuses.EB"
+                },
+                {
+                  "type": "stat_block",
+                  "label": "AB",
+                  "bind": "$.base_bonuses.AB"
+                },
+                {
+                  "type": "stat_block",
+                  "label": "IB",
+                  "bind": "$.base_bonuses.IB"
+                },
+                {
+                  "type": "stat_block",
+                  "label": "WB",
+                  "bind": "$.base_bonuses.WB"
+                },
+                {
+                  "type": "stat_block",
+                  "label": "PcB",
+                  "bind": "$.base_bonuses.PcB"
+                },
+                {
+                  "type": "stat_block",
+                  "label": "PsB",
+                  "bind": "$.base_bonuses.PsB"
+                },
+                {
+                  "type": "stat_block",
+                  "label": "LB",
+                  "bind": "$.base_bonuses.LB"
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "title": "Derived Stats",
+              "layout": { "type": "grid", "columns": 2 },
+              "widgets": [
+                { "type": "stat_block", "label": "HP (cur)", "bind": "$.derived_stats.HP.current" },
+                { "type": "stat_block", "label": "HP (max)", "bind": "$.derived_stats.HP.max" },
+                { "type": "stat_block", "label": "MP (cur)", "bind": "$.derived_stats.MP.current" },
+                { "type": "stat_block", "label": "MP (max)", "bind": "$.derived_stats.MP.max" },
+                { "type": "stat_block", "label": "WT (cur)", "bind": "$.derived_stats.WT.current" },
+                { "type": "stat_block", "label": "WT (max)", "bind": "$.derived_stats.WT.max" },
+                { "type": "stat_block", "label": "SP (cur)", "bind": "$.derived_stats.SP.current" },
+                { "type": "stat_block", "label": "SP (max)", "bind": "$.derived_stats.SP.max" },
+                { "type": "stat_block", "label": "Speed", "bind": "$.derived_stats.Speed_m" },
+                { "type": "stat_block", "label": "LP (cur)", "bind": "$.derived_stats.LP.current" },
+                { "type": "stat_block", "label": "LP (max)", "bind": "$.derived_stats.LP.max" },
+                { "type": "stat_block", "label": "IR", "bind": "$.derived_stats.IR" },
+                { "type": "stat_block", "label": "AP (cur)", "bind": "$.derived_stats.AP.current" },
+                { "type": "stat_block", "label": "AP (max)", "bind": "$.derived_stats.AP.max" },
+                { "type": "stat_block", "label": "Ling.", "bind": "$.derived_stats.Linguistics" },
+                { "type": "stat_block", "label": "ENC", "bind": "$.derived_stats.ENC.current" },
+                { "type": "stat_block", "label": "ENC (max)", "bind": "$.derived_stats.ENC.max" },
+                { "type": "stat_block", "label": "CR", "bind": "$.derived_stats.CR" }
+              ]
+            },
+            {
+              "type": "group",
+              "title": "Combat Quick Block",
+              "layout": { "type": "grid", "columns": 1 },
+              "widgets": [
+                {
+                  "type": "group",
+                  "title": "Armor",
+                  "layout": { "type": "grid", "columns": 3 },
+                  "widgets": [
+                    {
+                      "type": "table_inline",
+                      "id": "armor_slots_quick",
+                      "bind": "$.armor.slots",
+                      "mode": "keyed_object",
+                      "rows": [
+                        { "key": "head_0", "label": "Head" },
+                        { "key": "body_1_5", "label": "Body" },
+                        { "key": "right_leg_6", "label": "R.Leg" }
+                      ],
+                      "columns": [
+                        { "key": "AR", "label": "AR", "width": 4 },
+                        { "key": "ENC", "label": "ENC", "width": 4 }
+                      ],
+                      "colspan": 3
+                    }
+                  ]
+                },
+                { "type": "field", "label": "Combat Style", "bind": "$.combat_style.name", "widget": "entry" }
+              ]
+            }
+          ]
+        },
+        "content": {
+          "type": "layout_col",
+          "widgets": [
+            {
+              "type": "group",
+              "title": "Skills",
+              "layout": { "type": "grid", "columns": 1 },
+              "widgets": [
+                {
+                  "type": "table",
+                  "id": "skills_table_sheet",
+                  "bind": "$.skills",
+                  "style": "skill",
+                  "columns": [
+                    { "key": "name", "label": "Skill", "width": 34 },
+                    { "key": "rank", "label": "Rank", "width": 12 },
+                    { "key": "bonus", "label": "Bonus", "width": 8 },
+                    { "key": "tn", "label": "TN", "width": 8 }
+                  ],
+                  "row_editor": {
+                    "fields": [
+                      { "label": "Skill", "key": "name", "widget": "entry" },
+                      { "label": "Rank", "key": "rank", "widget": "entry" },
+                      { "label": "Bonus", "key": "bonus", "widget": "spin_int", "min": -99, "max": 999 },
+                      { "label": "TN", "key": "tn", "widget": "spin_int", "min": 0, "max": 999 },
+                      { "label": "Governing", "key": "governing", "widget": "tags", "hint": "e.g. Agility, Perception" }
+                    ],
+                    "buttons": ["add", "update", "delete"]
+                  }
+                }
+              ]
+            }
+          ]
+        }
       },
-      "left_panel": {
-        "id": "portrait_panel",
-        "title": "Portrait",
-        "widgets": [
-          {
-            "type": "image",
-            "id": "portrait_image",
-            "bind": "$.portrait.file",
-            "max_size": [200, 240],
-            "placeholder": "No portrait selected"
-          },
-          {
-            "type": "button",
-            "id": "select_portrait",
-            "text": "Select Portrait…",
-            "command": "select_portrait_from_dir"
-          },
-          {
-            "type": "label",
-            "id": "portrait_hint",
-            "text": "Put images into assets/portraits (png/jpg/gif).",
-            "style": "base"
-          }
-        ]
-      },
-      "main_panel": {
+      "details_panel": {
         "type": "notebook",
         "tabs": [
           {
