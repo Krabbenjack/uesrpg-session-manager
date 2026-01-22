@@ -1374,12 +1374,13 @@ class CharacterWindowUI:
             # Set dialog state
             self._set_dialog_state(self.dialog_state)
             
-            # Restore original widgets
+            # Restore original widgets (dialog widgets are in self.dialog_widgets)
             self.widgets = self.original_widgets
             
         except Exception as e:
             logger.error(f"Error showing import dialog: {e}", exc_info=True)
             messagebox.showerror("Error", f"Failed to show import dialog: {e}")
+            # Restore widgets on error
             if hasattr(self, 'original_widgets'):
                 self.widgets = self.original_widgets
     
@@ -1434,12 +1435,13 @@ class CharacterWindowUI:
             # Merge with deep_merge
             merged_data = self.deep_merge(default_data, loaded_data, overwrite=overwrite)
             
-            # Restore original widgets
-            self.widgets = self.original_widgets
-            
-            # Apply to UI
+            # Apply to UI (this might raise an exception)
             self.character_data = merged_data
             self.set_state(merged_data)
+            
+            # Only close dialog and restore widgets after successful state application
+            # Restore original widgets
+            self.widgets = self.original_widgets
             
             # Close dialog
             self.import_dialog.destroy()
@@ -1453,6 +1455,9 @@ class CharacterWindowUI:
         except Exception as e:
             logger.error(f"Error importing character: {e}", exc_info=True)
             messagebox.showerror("Error", f"Failed to import character: {e}")
+            # Restore widgets on error
+            if hasattr(self, 'original_widgets'):
+                self.widgets = self.original_widgets
             if hasattr(self, 'original_widgets'):
                 self.widgets = self.original_widgets
     
