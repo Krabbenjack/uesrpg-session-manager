@@ -1397,8 +1397,8 @@ class CharacterWindowUI:
             loaded_data = self.dialog_state['loaded_data']
             overwrite = self.dialog_state.get('overwrite', True)
             
-            # Use core function to merge data
-            merged_data = deep_merge(default_data, loaded_data, overwrite=overwrite)
+            # Use core function to merge character data with default schema
+            merged_data = merge_character_data(default_data, loaded_data, overwrite=overwrite)
             
             # Apply to UI (this might raise an exception)
             self.character_data = merged_data
