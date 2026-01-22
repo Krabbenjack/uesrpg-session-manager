@@ -25,12 +25,12 @@ def test_deep_merge_logic():
             elif isinstance(value, list) and isinstance(result[key], list):
                 if overwrite:
                     result[key] = deepcopy(value)
-                elif not result[key]:
+                elif len(result[key]) == 0:
                     result[key] = deepcopy(value)
             else:
                 if overwrite:
                     result[key] = deepcopy(value)
-                elif not result[key]:
+                elif result[key] in ('', None):
                     result[key] = deepcopy(value)
         
         return result
@@ -131,6 +131,26 @@ def test_deep_merge_logic():
     assert result['elite_adv'] == 'Vampire', "Should add new keys"
     assert 'spells' in result, "Should add new keys"
     print("✓ Test 6: Adding new keys from overlay passed")
+    
+    # Test 7: Legitimate falsy values preserved with overwrite=False
+    base = {
+        'xp': 0,
+        'is_elite': False,
+        'name': '',
+        'level': 5
+    }
+    overlay = {
+        'xp': 100,
+        'is_elite': True,
+        'name': 'Hero',
+        'level': 10
+    }
+    result = deep_merge(base, overlay, overwrite=False)
+    assert result['xp'] == 0, "Should preserve 0 (legitimate falsy value)"
+    assert result['is_elite'] == False, "Should preserve False (legitimate falsy value)"
+    assert result['name'] == 'Hero', "Should fill empty string"
+    assert result['level'] == 5, "Should preserve existing non-zero number"
+    print("✓ Test 7: Legitimate falsy values preserved with overwrite=False passed")
     
     print("\n✓ All deep_merge logic tests passed!")
 

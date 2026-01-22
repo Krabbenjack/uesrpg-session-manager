@@ -1257,15 +1257,16 @@ class CharacterWindowUI:
                 # Both are lists
                 if overwrite:
                     result[key] = deepcopy(value)
-                elif not result[key]:
+                elif len(result[key]) == 0:
                     # Only overwrite if base list is empty
                     result[key] = deepcopy(value)
             else:
                 # Scalar values
                 if overwrite:
                     result[key] = deepcopy(value)
-                elif not result[key]:
-                    # Only overwrite if base value is empty/falsy
+                elif result[key] in ('', None):
+                    # Only overwrite if base value is empty string or None
+                    # Preserves legitimate falsy values like 0, False, []
                     result[key] = deepcopy(value)
         
         return result
@@ -1323,8 +1324,13 @@ class CharacterWindowUI:
             messagebox.showerror("Error", f"Failed to save character: {e}")
     
     def export_character_data(self):
-        """Export character data to JSON file (reuses save functionality)."""
-        # This is essentially the same as save_character_as
+        """
+        Export character data to JSON file.
+        
+        This is a wrapper around save_character_as() to provide a distinct
+        menu entry for export operations. Per requirements, it uses the same
+        underlying save functionality but maintains menu separation for clarity.
+        """
         self.save_character_as()
     
     def show_import_dialog(self):
