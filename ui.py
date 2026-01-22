@@ -123,23 +123,302 @@ class CharacterWindowUI:
         main_frame = ttk.Frame(self.root)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        # Determine layout type
-        layout = window_config.get('layout', {})
-        layout_type = layout.get('type', 'grid')
-        
-        if layout_type == 'grid':
-            columns = layout.get('columns', [])
-            if len(columns) >= 2:
-                # Two-column layout with left panel and main panel
-                self._build_two_column_layout(main_frame, window_config, columns)
+        # Check for new sheet_view layout
+        if 'sheet_view' in window_config:
+            # New character sheet dashboard layout
+            self._build_sheet_view_layout(main_frame, window_config)
+        elif 'layout' in window_config:
+            # Legacy two-column layout (for backwards compatibility)
+            layout = window_config.get('layout', {})
+            layout_type = layout.get('type', 'grid')
+            
+            if layout_type == 'grid':
+                columns = layout.get('columns', [])
+                if len(columns) >= 2:
+                    # Two-column layout with left panel and main panel
+                    self._build_two_column_layout(main_frame, window_config, columns)
+                else:
+                    # Single column
+                    self._build_single_column_layout(main_frame, window_config)
             else:
-                # Single column
                 self._build_single_column_layout(main_frame, window_config)
         else:
             self._build_single_column_layout(main_frame, window_config)
         
         # Create status bar
         self._create_status_bar()
+    
+    def _build_sheet_view_layout(self, parent, window_config):
+        """Build the new character sheet dashboard layout."""
+        # Create scrollable canvas for the sheet view
+        canvas = tk.Canvas(parent, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(parent, orient=tk.VERTICAL, command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Enable mouse wheel scrolling
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        sheet_view = window_config.get('sheet_view', {})
+        
+        # Render header band
+        if 'header' in sheet_view:
+            header_frame = ttk.Frame(scrollable_frame)
+            header_frame.pack(fill=tk.X, padx=10, pady=5)
+            self._render_widget(header_frame, sheet_view['header'])
+        
+        # Render core band (3-column stats)
+        if 'core' in sheet_view:
+            core_frame = ttk.Frame(scrollable_frame)
+            core_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+            self._render_widget(core_frame, sheet_view['core'])
+        
+        # Render content band (skills, etc.)
+        if 'content' in sheet_view:
+            content_frame = ttk.Frame(scrollable_frame)
+            content_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+            self._render_widget(content_frame, sheet_view['content'])
+        
+        # Add details panel toggle button and notebook (collapsed by default)
+        if 'details_panel' in window_config:
+            details_toggle_frame = ttk.Frame(scrollable_frame)
+            details_toggle_frame.pack(fill=tk.X, padx=10, pady=5)
+            
+            self.details_visible = tk.BooleanVar(value=False)
+            self.details_notebook_frame = None
+            
+            toggle_btn = ttk.Button(
+                details_toggle_frame,
+                text="▶ Show Details (Gear, Magic, Notes...)",
+                command=self._toggle_details_panel
+            )
+            toggle_btn.pack(side=tk.LEFT)
+            
+            # Create details panel frame (initially hidden)
+            self.details_notebook_frame = ttk.Frame(scrollable_frame)
+            self._build_details_panel(self.details_notebook_frame, window_config.get('details_panel'))
+    
+    def _toggle_details_panel(self):
+        """Toggle visibility of the details notebook panel."""
+        if self.details_visible.get():
+            # Hide details
+            self.details_notebook_frame.pack_forget()
+            self.details_visible.set(False)
+            # Update button text
+            for widget in self.root.winfo_children():
+                self._update_toggle_button_text(widget, False)
+        else:
+            # Show details
+            self.details_notebook_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+            self.details_visible.set(True)
+            # Update button text
+            for widget in self.root.winfo_children():
+                self._update_toggle_button_text(widget, True)
+    
+    def _update_toggle_button_text(self, widget, expanded):
+        """Recursively update toggle button text."""
+        if isinstance(widget, ttk.Button):
+            current_text = widget.cget('text')
+            if 'Show Details' in current_text or 'Hide Details' in current_text:
+                if expanded:
+                    widget.config(text="▼ Hide Details (Gear, Magic, Notes...)")
+                else:
+                    widget.config(text="▶ Show Details (Gear, Magic, Notes...)")
+        for child in widget.winfo_children():
+            self._update_toggle_button_text(child, expanded)
+    
+    def _build_details_panel(self, parent, panel_config):
+        """Build the details notebook panel (legacy tabs)."""
+        if not panel_config:
+            return
+        
+        panel_type = panel_config.get('type', 'notebook')
+        
+        if panel_type == 'notebook':
+            notebook = ttk.Notebook(parent)
+            notebook.pack(fill=tk.BOTH, expand=True)
+            
+            tabs = panel_config.get('tabs', [])
+            for tab_config in tabs:
+                self._create_tab(notebook, tab_config)
+    
+    def _create_tab(self, notebook, tab_config):
+        """Create a single tab in the notebook."""
+        tab_title = tab_config.get('title', 'Tab')
+        tab_frame = ttk.Frame(notebook)
+        notebook.add(tab_frame, text=tab_title)
+        
+        # Create scrollable area for tab
+        tab_canvas = tk.Canvas(tab_frame)
+        tab_scrollbar = ttk.Scrollbar(tab_frame, orient="vertical", command=tab_canvas.yview)
+        tab_scrollable = ttk.Frame(tab_canvas)
+        
+        tab_scrollable.bind(
+            "<Configure>",
+            lambda e: tab_canvas.configure(scrollregion=tab_canvas.bbox("all"))
+        )
+        
+        tab_canvas.create_window((0, 0), window=tab_scrollable, anchor="nw")
+        tab_canvas.configure(yscrollcommand=tab_scrollbar.set)
+        
+        tab_canvas.pack(side="left", fill="both", expand=True)
+        tab_scrollbar.pack(side="right", fill="y")
+        
+        # Build sections in tab
+        sections = tab_config.get('sections', [])
+        self._build_sections(tab_scrollable, sections)
+    
+    def _render_widget(self, parent, widget_config):
+        """Recursively render a widget based on its type."""
+        widget_type = widget_config.get('type', '')
+        
+        if widget_type == 'layout_row':
+            # Horizontal layout container
+            frame = ttk.Frame(parent)
+            frame.pack(fill=tk.X, expand=False, pady=5)
+            widgets = widget_config.get('widgets', [])
+            for child_config in widgets:
+                child_frame = ttk.Frame(frame)
+                child_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+                self._render_widget(child_frame, child_config)
+        
+        elif widget_type == 'layout_col':
+            # Vertical layout container
+            frame = ttk.Frame(parent)
+            frame.pack(fill=tk.BOTH, expand=True)
+            widgets = widget_config.get('widgets', [])
+            for child_config in widgets:
+                self._render_widget(frame, child_config)
+        
+        elif widget_type == 'sheet_grid':
+            # Grid layout for core stats (3 columns)
+            frame = ttk.Frame(parent)
+            frame.pack(fill=tk.BOTH, expand=True, pady=5)
+            
+            num_columns = widget_config.get('columns', 3)
+            for i in range(num_columns):
+                frame.columnconfigure(i, weight=1)
+            
+            widgets = widget_config.get('widgets', [])
+            for idx, child_config in enumerate(widgets):
+                col = idx % num_columns
+                row = idx // num_columns
+                child_frame = ttk.Frame(frame)
+                child_frame.grid(row=row, column=col, sticky='nsew', padx=5, pady=5)
+                self._render_widget(child_frame, child_config)
+        
+        elif widget_type == 'portrait_box':
+            # Portrait display with fixed size
+            self._render_portrait_box(parent, widget_config)
+        
+        elif widget_type == 'stat_block':
+            # Individual stat display (large value + small label)
+            self._render_stat_block(parent, widget_config)
+        
+        elif widget_type == 'group':
+            # Group with title and children (same as existing implementation)
+            title = widget_config.get('title', '')
+            group_frame = ttk.LabelFrame(parent, text=title)
+            group_frame.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
+            
+            layout = widget_config.get('layout', {})
+            widgets = widget_config.get('widgets', [])
+            self._build_widgets_with_layout(group_frame, widgets, layout)
+        
+        elif widget_type == 'field':
+            # Regular field - use grid layout with single field
+            self._build_widgets_with_layout(parent, [widget_config], {'type': 'grid', 'columns': 1})
+        
+        elif widget_type == 'table':
+            # Table widget
+            self._build_widgets_with_layout(parent, [widget_config], {'type': 'grid', 'columns': 1})
+        
+        elif widget_type == 'table_inline':
+            # Inline table widget
+            self._build_widgets_with_layout(parent, [widget_config], {'type': 'grid', 'columns': 1})
+        
+        else:
+            logger.warning(f"Unknown widget type in _render_widget: {widget_type}")
+    
+    def _render_portrait_box(self, parent, config):
+        """Render portrait box with fixed size 320x200."""
+        frame = ttk.LabelFrame(parent, text="Portrait")
+        frame.pack(side=tk.LEFT, fill=tk.NONE, expand=False, padx=5, pady=5)
+        
+        size = config.get('size', [320, 200])
+        width, height = size
+        
+        # Create a frame with fixed size
+        portrait_frame = ttk.Frame(frame, width=width, height=height)
+        portrait_frame.pack_propagate(False)  # Prevent resizing
+        portrait_frame.pack(padx=5, pady=5)
+        
+        # Try to load and display image, or show placeholder
+        bind_path = config.get('bind', '')
+        placeholder_text = config.get('placeholder', 'No portrait')
+        
+        # Try to import PIL for image support
+        try:
+            from PIL import Image, ImageTk
+            portrait_label = ttk.Label(portrait_frame, text=placeholder_text, anchor='center')
+            portrait_label.pack(fill=tk.BOTH, expand=True)
+            portrait_label._size = size
+            portrait_label._has_pil = True
+        except ImportError:
+            # Fallback without PIL
+            portrait_label = ttk.Label(portrait_frame, text=placeholder_text, anchor='center', 
+                                      relief=tk.SUNKEN, background='#D0D0D0')
+            portrait_label.pack(fill=tk.BOTH, expand=True)
+            portrait_label._has_pil = False
+        
+        # Store reference for updates
+        if bind_path:
+            self.widgets[bind_path] = portrait_label
+            portrait_label._bind_path = bind_path
+            portrait_label._current_path = ''  # Initialize empty
+            portrait_label._placeholder = placeholder_text
+        
+        # Add select button
+        button_text = config.get('button_text', 'Select Portrait…')
+        command_name = config.get('command', '')
+        if command_name:
+            btn = ttk.Button(frame, text=button_text,
+                           command=lambda: self._handle_command(command_name))
+            btn.pack(pady=5)
+    
+    def _render_stat_block(self, parent, config):
+        """Render a stat block (large value + small label)."""
+        label_text = config.get('label', '')
+        bind_path = config.get('bind', '')
+        
+        # Create a frame for the stat block
+        stat_frame = ttk.Frame(parent)
+        stat_frame.pack(side=tk.LEFT, padx=5, pady=2)
+        
+        # Label on top (small)
+        label = ttk.Label(stat_frame, text=label_text, font=('TkDefaultFont', 8))
+        label.pack()
+        
+        # Value entry below (larger)
+        value_entry = ttk.Entry(stat_frame, width=6, font=('TkDefaultFont', 10, 'bold'),
+                               justify='center')
+        value_entry.pack()
+        
+        # Register widget for data binding
+        if bind_path:
+            self.widgets[bind_path] = value_entry
     
     def _create_menu_bar(self):
         """Create menu bar from spec."""
@@ -665,6 +944,13 @@ class CharacterWindowUI:
         elif isinstance(widget, ttk.Frame) and hasattr(widget, '_table_inline_config'):
             # Inline table - get values from child widgets
             return self._get_inline_table_values(widget)
+        elif isinstance(widget, ttk.Label) and hasattr(widget, '_bind_path') and 'portrait' in widget._bind_path:
+            # Portrait image widget - return stored path
+            if hasattr(widget, '_current_path'):
+                return widget._current_path
+            # Fallback to text content if no path stored
+            text = widget.cget('text')
+            return text if text and text != getattr(widget, '_placeholder', '') else ''
         elif isinstance(widget, ttk.Label):
             # Image widget - just return the path
             return widget.cget('text') if hasattr(widget, '_placeholder') else ''
@@ -717,12 +1003,76 @@ class CharacterWindowUI:
         elif isinstance(widget, ttk.Frame) and hasattr(widget, '_table_inline_config'):
             # Set inline table values
             self._set_inline_table_values(widget, value)
+        elif isinstance(widget, ttk.Label) and hasattr(widget, '_bind_path') and 'portrait' in widget._bind_path:
+            # Portrait image widget with PIL support
+            if value and isinstance(value, str):
+                widget._current_path = value  # Store path for get_state
+                self._load_portrait_image(widget, value)
+            else:
+                # Show placeholder
+                widget._current_path = ''
+                placeholder = getattr(widget, '_placeholder', 'No portrait')
+                widget.config(text=placeholder, image='')
         elif isinstance(widget, ttk.Label) and hasattr(widget, '_placeholder'):
-            # Image widget
+            # Generic image widget
             if value:
                 widget.config(text=str(value))
             else:
                 widget.config(text=widget._placeholder)
+    
+    def _load_portrait_image(self, label_widget, image_path):
+        """Load and display a portrait image with PIL, or show path as fallback."""
+        if not image_path or not Path(image_path).exists():
+            # File doesn't exist, show placeholder
+            placeholder = getattr(label_widget, '_placeholder', 'No portrait')
+            label_widget.config(text=placeholder, image='')
+            return
+        
+        # Check if PIL is available
+        if not hasattr(label_widget, '_has_pil') or not label_widget._has_pil:
+            # Fallback: show filename
+            label_widget.config(text=Path(image_path).name)
+            return
+        
+        try:
+            from PIL import Image, ImageTk
+            
+            # Get target size
+            target_size = getattr(label_widget, '_size', [320, 200])
+            target_width, target_height = target_size
+            
+            # Load image
+            img = Image.open(image_path)
+            
+            # Calculate aspect ratios
+            img_aspect = img.width / img.height
+            target_aspect = target_width / target_height
+            
+            # Letterbox approach: fit image inside target size maintaining aspect ratio
+            if img_aspect > target_aspect:
+                # Image is wider - fit to width
+                new_width = target_width
+                new_height = int(target_width / img_aspect)
+            else:
+                # Image is taller - fit to height
+                new_height = target_height
+                new_width = int(target_height * img_aspect)
+            
+            # Resize image
+            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # Convert to PhotoImage
+            photo = ImageTk.PhotoImage(img)
+            
+            # Update label
+            label_widget.config(image=photo, text='')
+            # Keep a reference to prevent garbage collection
+            label_widget.image = photo
+            
+        except Exception as e:
+            logger.error(f"Failed to load portrait image {image_path}: {e}")
+            # Fallback to showing filename
+            label_widget.config(text=Path(image_path).name, image='')
     
     def _set_inline_table_values(self, frame, values):
         """Set values to an inline table widget."""
@@ -887,13 +1237,18 @@ class CharacterWindowUI:
             if not filename:
                 return
             
-            # Store relative path if possible
+            # Store the full path
             portrait_path_str = filename
             
             # Update the portrait field
             portrait_bind = "$.portrait.file"
             if portrait_bind in self.widgets:
-                self.widgets[portrait_bind].config(text=portrait_path_str)
+                portrait_widget = self.widgets[portrait_bind]
+                # Load and display the image
+                self._load_portrait_image(portrait_widget, portrait_path_str)
+                # Also update the text value for state management
+                if hasattr(portrait_widget, '_current_path'):
+                    portrait_widget._current_path = portrait_path_str
             
             self.status_var.set(f"Portrait selected: {Path(filename).name}")
         except Exception as e:
