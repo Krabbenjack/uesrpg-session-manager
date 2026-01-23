@@ -49,6 +49,7 @@ class CharacterWindowUI:
         self.character_data = {}
         self.widgets = {}  # Maps bind paths to list of widgets (supports duplicates)
         self.validation_errors = []
+        self._recompute_scheduled = None  # For debouncing recompute events
         
         # Load spec
         self._load_spec()
@@ -970,8 +971,8 @@ class CharacterWindowUI:
                 value = None
                 for widget in widget_list:
                     widget_value = self._get_widget_value(widget)
-                    # Use first non-empty value, or last value if all empty
-                    if widget_value not in [None, '', [], 0]:
+                    # Use first non-empty value (but allow 0 as valid), or last value if all empty
+                    if widget_value not in [None, '', []]:
                         value = widget_value
                         break
                     value = widget_value  # Keep last value as fallback
@@ -1056,7 +1057,7 @@ class CharacterWindowUI:
                         val = child.get()
                         # Try to convert to int if possible
                         try:
-                            result[key][col_key] = int(val) if val else 0
+                            result[key][col_key] = int(val or '0')
                         except ValueError:
                             result[key][col_key] = val
             
@@ -1092,7 +1093,7 @@ class CharacterWindowUI:
                         val = child.get()
                         # Try to convert to int if possible
                         try:
-                            row_data[col_key] = int(val) if val else 0
+                            row_data[col_key] = int(val or '0')
                         except ValueError:
                             row_data[col_key] = val
             
@@ -1109,16 +1110,27 @@ class CharacterWindowUI:
         """
         Recompute derived stats based on current UI state.
         Called when characteristic scores are edited.
+        Uses debouncing to avoid multiple rapid recomputations.
         """
-        try:
-            # Get current state from UI
-            current_state = self.get_state()
-            
-            # Reapply state with derived stats computation
-            # This will trigger apply_derived_stats and update readonly fields
-            self.set_state(current_state)
-        except Exception as e:
-            logger.error(f"Failed to recompute derived stats: {e}")
+        # Cancel any pending recompute
+        if self._recompute_scheduled is not None:
+            self.root.after_cancel(self._recompute_scheduled)
+        
+        # Schedule recompute after 300ms delay
+        def do_recompute():
+            try:
+                # Get current state from UI
+                current_state = self.get_state()
+                
+                # Reapply state with derived stats computation
+                # This will trigger apply_derived_stats and update readonly fields
+                self.set_state(current_state)
+            except Exception as e:
+                logger.error(f"Failed to recompute derived stats: {e}")
+            finally:
+                self._recompute_scheduled = None
+        
+        self._recompute_scheduled = self.root.after(300, do_recompute)
     
     def set_state(self, state: Dict):
         """
