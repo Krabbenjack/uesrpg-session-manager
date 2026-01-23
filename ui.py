@@ -171,10 +171,18 @@ class CharacterWindowUI:
         self._create_status_bar()
     
     def _build_sheet_view_layout(self, parent, window_config):
-        """Build the new character sheet dashboard layout."""
+        """Build the new character sheet dashboard layout with 2-page UI."""
+        # Create top-level notebook for Sheet and Details pages
+        top_notebook = ttk.Notebook(parent)
+        top_notebook.pack(fill=tk.BOTH, expand=True)
+        
+        # Page 1: Sheet (existing sheet layout)
+        sheet_page = ttk.Frame(top_notebook)
+        top_notebook.add(sheet_page, text="Sheet")
+        
         # Create scrollable canvas for the sheet view
-        canvas = tk.Canvas(parent, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(parent, orient=tk.VERTICAL, command=canvas.yview)
+        canvas = tk.Canvas(sheet_page, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(sheet_page, orient=tk.VERTICAL, command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
         
         scrollable_frame.bind(
@@ -213,53 +221,11 @@ class CharacterWindowUI:
             content_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
             self._render_widget(content_frame, sheet_view['content'])
         
-        # Add details panel toggle button and notebook (collapsed by default)
+        # Page 2: Details (with vertical layout)
         if 'details_panel' in window_config:
-            details_toggle_frame = ttk.Frame(scrollable_frame)
-            details_toggle_frame.pack(fill=tk.X, padx=10, pady=5)
-            
-            self.details_visible = tk.BooleanVar(value=False)
-            self.details_notebook_frame = None
-            
-            toggle_btn = ttk.Button(
-                details_toggle_frame,
-                text="▶ Show Details (Gear, Magic, Notes...)",
-                command=self._toggle_details_panel
-            )
-            toggle_btn.pack(side=tk.LEFT)
-            
-            # Create details panel frame (initially hidden)
-            self.details_notebook_frame = ttk.Frame(scrollable_frame)
-            self._build_details_panel(self.details_notebook_frame, window_config.get('details_panel'))
-    
-    def _toggle_details_panel(self):
-        """Toggle visibility of the details notebook panel."""
-        if self.details_visible.get():
-            # Hide details
-            self.details_notebook_frame.pack_forget()
-            self.details_visible.set(False)
-            # Update button text
-            for widget in self.root.winfo_children():
-                self._update_toggle_button_text(widget, False)
-        else:
-            # Show details
-            self.details_notebook_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-            self.details_visible.set(True)
-            # Update button text
-            for widget in self.root.winfo_children():
-                self._update_toggle_button_text(widget, True)
-    
-    def _update_toggle_button_text(self, widget, expanded):
-        """Recursively update toggle button text."""
-        if isinstance(widget, ttk.Button):
-            current_text = widget.cget('text')
-            if 'Show Details' in current_text or 'Hide Details' in current_text:
-                if expanded:
-                    widget.config(text="▼ Hide Details (Gear, Magic, Notes...)")
-                else:
-                    widget.config(text="▶ Show Details (Gear, Magic, Notes...)")
-        for child in widget.winfo_children():
-            self._update_toggle_button_text(child, expanded)
+            details_page = ttk.Frame(top_notebook)
+            top_notebook.add(details_page, text="Details")
+            self._build_details_panel(details_page, window_config.get('details_panel'))
     
     def _build_details_panel(self, parent, panel_config):
         """Build the details notebook panel (legacy tabs)."""
@@ -1064,8 +1030,78 @@ class CharacterWindowUI:
     
     def _get_inline_table_values(self, frame):
         """Get values from an inline table widget."""
-        # This is complex - would need to iterate through child widgets
-        # For now, return empty or existing data
+        config = frame._table_inline_config
+        columns_config = frame._columns_config
+        mode = frame._mode
+        
+        if mode == 'keyed_object':
+            # Fixed rows based on spec - return dict
+            result = {}
+            rows_config = config.get('rows', [])
+            
+            for child in frame.winfo_children():
+                if hasattr(child, '_inline_key') and hasattr(child, '_inline_col'):
+                    key = child._inline_key
+                    col_key = child._inline_col
+                    
+                    # Initialize row dict if needed
+                    if key not in result:
+                        result[key] = {}
+                    
+                    # Get value from widget
+                    if isinstance(child, ttk.Checkbutton):
+                        result[key][col_key] = child.var.get()
+                    elif isinstance(child, ttk.Entry):
+                        val = child.get()
+                        # Try to convert to int if possible
+                        try:
+                            result[key][col_key] = int(val) if val else 0
+                        except ValueError:
+                            result[key][col_key] = val
+            
+            return result
+        
+        elif isinstance(config.get('rows'), list) or mode == 'list':
+            # List mode - return list of dicts
+            result = []
+            row_data = {}
+            current_row = -1
+            
+            for child in frame.winfo_children():
+                # Get grid info to determine row
+                info = child.grid_info()
+                row = info.get('row', 0)
+                
+                if row != current_row and row_data:
+                    # New row started, save previous row
+                    result.append(row_data)
+                    row_data = {}
+                
+                current_row = row
+                
+                # Get column key from widget
+                col_idx = info.get('column', 0)
+                if col_idx < len(columns_config):
+                    col_key = columns_config[col_idx].get('key', '')
+                    
+                    # Get value from widget
+                    if isinstance(child, ttk.Checkbutton):
+                        row_data[col_key] = child.var.get()
+                    elif isinstance(child, ttk.Entry):
+                        val = child.get()
+                        # Try to convert to int if possible
+                        try:
+                            row_data[col_key] = int(val) if val else 0
+                        except ValueError:
+                            row_data[col_key] = val
+            
+            # Don't forget last row
+            if row_data:
+                result.append(row_data)
+            
+            return result
+        
+        # Fallback - return empty
         return []
     
     def set_state(self, state: Dict):
