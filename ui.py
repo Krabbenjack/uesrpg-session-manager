@@ -785,6 +785,7 @@ class CharacterWindowUI:
             data_frame._table_inline_config = config
             data_frame._columns_config = columns_config
             data_frame._mode = mode
+            data_frame._bind_path = bind_path  # Store bind path for event binding
             self._register_widget(bind_path, data_frame)
     
     def _create_group_widget(self, parent, config, row, col, colspan):
@@ -1104,6 +1105,21 @@ class CharacterWindowUI:
         # Fallback - return empty
         return []
     
+    def _recompute_derived_stats(self, event=None):
+        """
+        Recompute derived stats based on current UI state.
+        Called when characteristic scores are edited.
+        """
+        try:
+            # Get current state from UI
+            current_state = self.get_state()
+            
+            # Reapply state with derived stats computation
+            # This will trigger apply_derived_stats and update readonly fields
+            self.set_state(current_state)
+        except Exception as e:
+            logger.error(f"Failed to recompute derived stats: {e}")
+    
     def set_state(self, state: Dict):
         """
         Apply a dictionary state to the UI.
@@ -1278,6 +1294,10 @@ class CharacterWindowUI:
                         
                         if column.get('readonly'):
                             widget.config(state='readonly')
+                        # Bind FocusOut to recompute derived stats for characteristics table
+                        # This triggers when user edits characteristic scores
+                        elif hasattr(frame, '_bind_path') and frame._bind_path == '$.characteristics' and col_key == 'score':
+                            widget.bind('<FocusOut>', self._recompute_derived_stats)
                     
                     widget.grid(row=row_idx, column=col_idx, padx=2, pady=1)
                     
