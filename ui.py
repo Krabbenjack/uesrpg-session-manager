@@ -969,13 +969,18 @@ class CharacterWindowUI:
             try:
                 # For multiple widgets bound to the same path, use the first non-empty value
                 value = None
+                found_non_empty = False
                 for widget in widget_list:
                     widget_value = self._get_widget_value(widget)
-                    # Use first non-empty value (but allow 0 as valid), or last value if all empty
+                    # Use first non-empty value (but allow 0 as valid)
                     if widget_value not in [None, '', []]:
                         value = widget_value
+                        found_non_empty = True
                         break
-                    value = widget_value  # Keep last value as fallback
+                
+                # If all values were empty, use the last one
+                if not found_non_empty and widget_list:
+                    value = self._get_widget_value(widget_list[-1])
                 
                 self._set_nested_value(state, bind_path, value)
             except Exception as e:
@@ -1057,8 +1062,8 @@ class CharacterWindowUI:
                         val = child.get()
                         # Try to convert to int if possible
                         try:
-                            result[key][col_key] = int(val or '0')
-                        except ValueError:
+                            result[key][col_key] = int(val) if val else 0
+                        except (ValueError, TypeError):
                             result[key][col_key] = val
             
             return result
@@ -1093,8 +1098,8 @@ class CharacterWindowUI:
                         val = child.get()
                         # Try to convert to int if possible
                         try:
-                            row_data[col_key] = int(val or '0')
-                        except ValueError:
+                            row_data[col_key] = int(val) if val else 0
+                        except (ValueError, TypeError):
                             row_data[col_key] = val
             
             # Don't forget last row
