@@ -47,7 +47,7 @@ class CharacterWindowUI:
         self.root = root
         self.spec = None
         self.character_data = {}
-        self.widgets = {}  # Maps bind paths to widgets
+        self.widgets = {}  # Maps bind paths to list of widgets (supports duplicates)
         self.validation_errors = []
         
         # Load spec
@@ -406,7 +406,7 @@ class CharacterWindowUI:
         
         # Store reference for updates
         if bind_path:
-            self.widgets[bind_path] = portrait_label
+            self._register_widget(bind_path, portrait_label)
             portrait_label._bind_path = bind_path
             portrait_label._current_path = ''  # Initialize empty
             portrait_label._placeholder = placeholder_text
@@ -432,14 +432,17 @@ class CharacterWindowUI:
         label = ttk.Label(stat_frame, text=label_text, font=('TkDefaultFont', 8))
         label.pack()
         
+        # Determine if this should be read-only (derived stats or base bonuses)
+        is_readonly = bind_path and (bind_path.startswith('$.derived_stats') or bind_path.startswith('$.base_bonuses'))
+        
         # Value entry below (larger)
         value_entry = ttk.Entry(stat_frame, width=6, font=('TkDefaultFont', 10, 'bold'),
-                               justify='center')
+                               justify='center', state='readonly' if is_readonly else 'normal')
         value_entry.pack()
         
         # Register widget for data binding
         if bind_path:
-            self.widgets[bind_path] = value_entry
+            self._register_widget(bind_path, value_entry)
     
     def _create_menu_bar(self):
         """Create menu bar from spec."""
@@ -668,6 +671,9 @@ class CharacterWindowUI:
         widget_type = config.get('widget', 'entry')
         hint = config.get('hint', '')
         
+        # Determine if this should be read-only (derived stats or base bonuses)
+        is_derived = bind_path and (bind_path.startswith('$.derived_stats') or bind_path.startswith('$.base_bonuses'))
+        
         # Create label
         label = ttk.Label(parent, text=label_text)
         label.grid(row=row, column=col, sticky='w', padx=5, pady=2)
@@ -679,30 +685,40 @@ class CharacterWindowUI:
         widget = None
         
         if widget_type == 'entry':
-            widget = ttk.Entry(input_frame)
+            # Make derived/base stats readonly
+            state = 'readonly' if is_derived else 'normal'
+            widget = ttk.Entry(input_frame, state=state)
             widget.pack(fill=tk.X, expand=True)
         elif widget_type == 'textarea':
             height = config.get('height', 4)
-            widget = scrolledtext.ScrolledText(input_frame, height=height, wrap=tk.WORD)
+            # Make derived/base stats readonly
+            state = 'disabled' if is_derived else 'normal'
+            widget = scrolledtext.ScrolledText(input_frame, height=height, wrap=tk.WORD, state=state)
             widget.pack(fill=tk.BOTH, expand=True)
         elif widget_type == 'spin_int':
             min_val = config.get('min', 0)
             max_val = config.get('max', 999999)
-            widget = ttk.Spinbox(input_frame, from_=min_val, to=max_val)
+            # Make derived/base stats readonly
+            state = 'readonly' if is_derived else 'normal'
+            widget = ttk.Spinbox(input_frame, from_=min_val, to=max_val, state=state)
             widget.pack(fill=tk.X, expand=True)
         elif widget_type == 'check':
             var = tk.BooleanVar()
-            widget = ttk.Checkbutton(input_frame, variable=var)
+            # Make derived/base stats disabled
+            state = 'disabled' if is_derived else 'normal'
+            widget = ttk.Checkbutton(input_frame, variable=var, state=state)
             widget.var = var
             widget.pack(anchor=tk.W)
         elif widget_type == 'tags':
             # Tags widget (comma-separated list)
-            widget = ttk.Entry(input_frame)
+            state = 'readonly' if is_derived else 'normal'
+            widget = ttk.Entry(input_frame, state=state)
             widget.pack(fill=tk.X, expand=True)
             widget._is_tags = True
         elif widget_type == 'int_list_csv':
             # Integer list CSV
-            widget = ttk.Entry(input_frame)
+            state = 'readonly' if is_derived else 'normal'
+            widget = ttk.Entry(input_frame, state=state)
             widget.pack(fill=tk.X, expand=True)
             widget._is_int_list_csv = True
         elif widget_type == 'readonly_entry':
@@ -714,7 +730,7 @@ class CharacterWindowUI:
             widget.pack(fill=tk.X, expand=True)
         
         if widget and bind_path:
-            self.widgets[bind_path] = widget
+            self._register_widget(bind_path, widget)
         
         # Add hint if provided
         if hint:
@@ -756,7 +772,7 @@ class CharacterWindowUI:
         if bind_path:
             tree._table_config = config
             tree._column_ids = column_ids
-            self.widgets[bind_path] = tree
+            self._register_widget(bind_path, tree)
         
         # Add buttons for row editing
         row_editor = config.get('row_editor', {})
@@ -803,7 +819,7 @@ class CharacterWindowUI:
             data_frame._table_inline_config = config
             data_frame._columns_config = columns_config
             data_frame._mode = mode
-            self.widgets[bind_path] = data_frame
+            self._register_widget(bind_path, data_frame)
     
     def _create_group_widget(self, parent, config, row, col, colspan):
         """Create a group widget (nested fields)."""
@@ -840,7 +856,7 @@ class CharacterWindowUI:
         if bind_path:
             image_label._max_size = max_size
             image_label._placeholder = placeholder_text
-            self.widgets[bind_path] = image_label
+            self._register_widget(bind_path, image_label)
     
     def _create_label_widget(self, parent, config, row, col, colspan):
         """Create a label widget."""
@@ -859,7 +875,7 @@ class CharacterWindowUI:
         
         # Register widget for data binding
         if bind_path:
-            self.widgets[bind_path] = preview_text
+            self._register_widget(bind_path, preview_text)
     
     def _create_placeholder_widget(self, parent, config, row, col, colspan):
         """Create a placeholder for unsupported widgets."""
@@ -893,7 +909,7 @@ class CharacterWindowUI:
         if bind_path:
             image_label._max_size = max_size
             image_label._placeholder = placeholder_text
-            self.widgets[bind_path] = image_label
+            self._register_widget(bind_path, image_label)
     
     def _create_button_widget_pack(self, parent, config):
         """Create button widget with pack layout."""
@@ -922,14 +938,17 @@ class CharacterWindowUI:
         label = ttk.Label(stat_frame, text=label_text, font=('TkDefaultFont', 8))
         label.pack()
         
+        # Determine if this should be read-only (derived stats or base bonuses)
+        is_readonly = bind_path and (bind_path.startswith('$.derived_stats') or bind_path.startswith('$.base_bonuses'))
+        
         # Value entry below (larger)
         value_entry = ttk.Entry(stat_frame, width=6, font=('TkDefaultFont', 10, 'bold'),
-                               justify='center')
+                               justify='center', state='readonly' if is_readonly else 'normal')
         value_entry.pack()
         
         # Register widget for data binding
         if bind_path:
-            self.widgets[bind_path] = value_entry
+            self._register_widget(bind_path, value_entry)
     
     def _handle_command(self, command_name: str):
         """Handle menu/button commands."""
@@ -965,13 +984,31 @@ class CharacterWindowUI:
             logger.error(f"Error handling command {command_name}: {e}", exc_info=True)
             messagebox.showerror("Error", f"Failed to execute command: {e}")
     
+    def _register_widget(self, bind_path: str, widget):
+        """Register a widget for a bind path, allowing multiple widgets per path."""
+        if not bind_path:
+            return
+        
+        if bind_path not in self.widgets:
+            self.widgets[bind_path] = []
+        self.widgets[bind_path].append(widget)
+    
     def get_state(self) -> Dict:
         """Extract current UI state into a dictionary."""
         state = {}
         
-        for bind_path, widget in self.widgets.items():
+        for bind_path, widget_list in self.widgets.items():
             try:
-                value = self._get_widget_value(widget)
+                # For multiple widgets bound to the same path, use the first non-empty value
+                value = None
+                for widget in widget_list:
+                    widget_value = self._get_widget_value(widget)
+                    # Use first non-empty value, or last value if all empty
+                    if widget_value not in [None, '', [], 0]:
+                        value = widget_value
+                        break
+                    value = widget_value  # Keep last value as fallback
+                
                 self._set_nested_value(state, bind_path, value)
             except Exception as e:
                 logger.error(f"Failed to extract value from widget at {bind_path}: {e}")
@@ -1045,12 +1082,14 @@ class CharacterWindowUI:
         # This ensures bonuses and derived values are always current
         state = apply_derived_stats(state)
         
-        # Apply state to widgets
-        for bind_path, widget in self.widgets.items():
+        # Apply state to all widgets (handles multiple widgets per bind path)
+        for bind_path, widget_list in self.widgets.items():
             try:
                 value = self._get_nested_value(state, bind_path)
                 if value is not None:
-                    self._set_widget_value(widget, value)
+                    # Update all widgets bound to this path
+                    for widget in widget_list:
+                        self._set_widget_value(widget, value)
             except Exception as e:
                 logger.warning(f"Failed to set widget value at {bind_path}: {e}")
     
@@ -1483,15 +1522,16 @@ class CharacterWindowUI:
             # Store the full path
             portrait_path_str = filename
             
-            # Update the portrait field
+            # Update the portrait field(s) - now handles multiple widgets per bind path
             portrait_bind = "$.portrait.file"
             if portrait_bind in self.widgets:
-                portrait_widget = self.widgets[portrait_bind]
-                # Load and display the image
-                self._load_portrait_image(portrait_widget, portrait_path_str)
-                # Also update the text value for state management
-                if hasattr(portrait_widget, '_current_path'):
-                    portrait_widget._current_path = portrait_path_str
+                portrait_widgets = self.widgets[portrait_bind]
+                for portrait_widget in portrait_widgets:
+                    # Load and display the image
+                    self._load_portrait_image(portrait_widget, portrait_path_str)
+                    # Also update the text value for state management
+                    if hasattr(portrait_widget, '_current_path'):
+                        portrait_widget._current_path = portrait_path_str
             
             self.status_var.set(f"Portrait selected: {Path(filename).name}")
         except Exception as e:
