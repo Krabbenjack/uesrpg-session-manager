@@ -10,7 +10,10 @@ from .import_export import (
     generate_preview,
     merge_character_data,
     validate_character_data,
+    prepare_export_data,
 )
+
+from .mechanics import apply_derived_stats
 
 __all__ = [
     'deep_merge',
@@ -19,4 +22,6 @@ __all__ = [
     'generate_preview',
     'merge_character_data',
     'validate_character_data',
+    'prepare_export_data',
+    'apply_derived_stats',
 ]
