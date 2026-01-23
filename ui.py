@@ -1032,7 +1032,20 @@ class CharacterWindowUI:
         return []
     
     def set_state(self, state: Dict):
-        """Apply a dictionary state to the UI."""
+        """
+        Apply a dictionary state to the UI.
+        
+        This method also computes derived stats whenever state is updated,
+        ensuring that characteristic bonuses, base bonuses, and derived stats
+        are always up-to-date with current characteristic scores.
+        """
+        from core import apply_derived_stats
+        
+        # Compute derived stats from current state
+        # This ensures bonuses and derived values are always current
+        state = apply_derived_stats(state)
+        
+        # Apply state to widgets
         for bind_path, widget in self.widgets.items():
             try:
                 value = self._get_nested_value(state, bind_path)
@@ -1282,8 +1295,12 @@ class CharacterWindowUI:
             # Get current state
             state = self.get_state()
             
+            # Prepare export data (strip computed/derived values)
+            from core import prepare_export_data
+            export_state = prepare_export_data(state)
+            
             # Use core function to save JSON
-            save_json_file(filename, state)
+            save_json_file(filename, export_state)
             
             self.status_var.set(f"Saved: {Path(filename).name}")
             logger.info(f"Saved character to {filename}")

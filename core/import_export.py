@@ -151,10 +151,11 @@ def merge_character_data(
     overwrite: bool = True
 ) -> Dict[str, Any]:
     """
-    Merge imported character data with default schema.
+    Merge imported character data with default schema and compute derived stats.
     
-    This is a convenience wrapper around deep_merge specifically for
-    character data, ensuring the result conforms to the expected schema.
+    This function:
+    1. Merges imported data with default schema using deep_merge
+    2. Applies derived stats engine to compute bonuses and derived values
     
     Args:
         default_schema: Default character schema from ui_spec.json
@@ -162,9 +163,19 @@ def merge_character_data(
         overwrite: Whether to overwrite existing values
     
     Returns:
-        Merged character data
+        Merged character data with computed derived stats
     """
-    return deep_merge(default_schema, imported_data, overwrite=overwrite)
+    # Import here to avoid circular dependency
+    from .mechanics import apply_derived_stats
+    
+    # Merge data with schema
+    merged = deep_merge(default_schema, imported_data, overwrite=overwrite)
+    
+    # Apply derived stats computation
+    # This computes characteristic bonuses, base bonuses, and derived stats
+    merged = apply_derived_stats(merged)
+    
+    return merged
 
 
 def validate_character_data(data: Dict[str, Any]) -> tuple[bool, list[str]]:
@@ -194,3 +205,57 @@ def validate_character_data(data: Dict[str, Any]) -> tuple[bool, list[str]]:
     # - Check value ranges
     
     return len(errors) == 0, errors
+
+
+def prepare_export_data(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Prepare character data for export by removing computed/derived values.
+    
+    Export Strategy (Strategy B - Hybrid):
+    - Strip characteristic bonuses (computed from scores)
+    - Strip base_bonuses entirely (computed from characteristic bonuses)
+    - Strip derived_stats computed maximums and values
+    - Keep only current pools (HP.current, MP.current, etc.) that users modify
+    
+    This ensures:
+    1. Exported JSON is slim and doesn't contain redundant computed data
+    2. Current resource pools (HP, MP, etc.) are preserved for game state
+    3. Re-importing exported JSON works correctly (derived values recomputed)
+    
+    Args:
+        data: Full character data from UI
+    
+    Returns:
+        Slimmed data suitable for export
+    """
+    # Deep copy to avoid modifying original
+    export_data = deepcopy(data)
+    
+    # Strip characteristic bonuses (these are computed from scores)
+    if 'characteristics' in export_data:
+        for char in export_data['characteristics']:
+            if 'bonus' in char:
+                del char['bonus']
+    
+    # Strip base_bonuses entirely (all computed from characteristic bonuses)
+    if 'base_bonuses' in export_data:
+        export_data['base_bonuses'] = {}
+    
+    # Strip derived_stats except for current pools
+    # Keep only: HP.current, MP.current, WT.current, SP.current, LP.current, AP.current, ENC.current
+    if 'derived_stats' in export_data:
+        derived = export_data['derived_stats']
+        preserved_currents = {}
+        
+        # Preserve current values from pool stats
+        pool_keys = ['HP', 'MP', 'WT', 'SP', 'LP', 'AP', 'ENC']
+        for key in pool_keys:
+            if key in derived and isinstance(derived[key], dict):
+                if 'current' in derived[key]:
+                    preserved_currents[key] = {'current': derived[key]['current']}
+        
+        # Replace derived_stats with only preserved currents
+        export_data['derived_stats'] = preserved_currents
+    
+    logger.info("Prepared export data: stripped computed bonuses and derived maximums")
+    return export_data
