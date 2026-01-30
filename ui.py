@@ -47,8 +47,9 @@ class CharacterWindowUI:
         self.root = root
         self.spec = None
         self.character_data = {}
-        self.widgets = {}  # Maps bind paths to widgets
+        self.widgets = {}  # Maps bind paths to list of widgets (supports duplicates)
         self.validation_errors = []
+        self._recompute_scheduled = None  # For debouncing recompute events
         
         # Load spec
         self._load_spec()
@@ -171,10 +172,18 @@ class CharacterWindowUI:
         self._create_status_bar()
     
     def _build_sheet_view_layout(self, parent, window_config):
-        """Build the new character sheet dashboard layout."""
+        """Build the new character sheet dashboard layout with 2-page UI."""
+        # Create top-level notebook for Sheet and Details pages
+        top_notebook = ttk.Notebook(parent)
+        top_notebook.pack(fill=tk.BOTH, expand=True)
+        
+        # Page 1: Sheet (existing sheet layout)
+        sheet_page = ttk.Frame(top_notebook)
+        top_notebook.add(sheet_page, text="Sheet")
+        
         # Create scrollable canvas for the sheet view
-        canvas = tk.Canvas(parent, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(parent, orient=tk.VERTICAL, command=canvas.yview)
+        canvas = tk.Canvas(sheet_page, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(sheet_page, orient=tk.VERTICAL, command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
         
         scrollable_frame.bind(
@@ -213,53 +222,11 @@ class CharacterWindowUI:
             content_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
             self._render_widget(content_frame, sheet_view['content'])
         
-        # Add details panel toggle button and notebook (collapsed by default)
+        # Page 2: Details (with vertical layout)
         if 'details_panel' in window_config:
-            details_toggle_frame = ttk.Frame(scrollable_frame)
-            details_toggle_frame.pack(fill=tk.X, padx=10, pady=5)
-            
-            self.details_visible = tk.BooleanVar(value=False)
-            self.details_notebook_frame = None
-            
-            toggle_btn = ttk.Button(
-                details_toggle_frame,
-                text="▶ Show Details (Gear, Magic, Notes...)",
-                command=self._toggle_details_panel
-            )
-            toggle_btn.pack(side=tk.LEFT)
-            
-            # Create details panel frame (initially hidden)
-            self.details_notebook_frame = ttk.Frame(scrollable_frame)
-            self._build_details_panel(self.details_notebook_frame, window_config.get('details_panel'))
-    
-    def _toggle_details_panel(self):
-        """Toggle visibility of the details notebook panel."""
-        if self.details_visible.get():
-            # Hide details
-            self.details_notebook_frame.pack_forget()
-            self.details_visible.set(False)
-            # Update button text
-            for widget in self.root.winfo_children():
-                self._update_toggle_button_text(widget, False)
-        else:
-            # Show details
-            self.details_notebook_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-            self.details_visible.set(True)
-            # Update button text
-            for widget in self.root.winfo_children():
-                self._update_toggle_button_text(widget, True)
-    
-    def _update_toggle_button_text(self, widget, expanded):
-        """Recursively update toggle button text."""
-        if isinstance(widget, ttk.Button):
-            current_text = widget.cget('text')
-            if 'Show Details' in current_text or 'Hide Details' in current_text:
-                if expanded:
-                    widget.config(text="▼ Hide Details (Gear, Magic, Notes...)")
-                else:
-                    widget.config(text="▶ Show Details (Gear, Magic, Notes...)")
-        for child in widget.winfo_children():
-            self._update_toggle_button_text(child, expanded)
+            details_page = ttk.Frame(top_notebook)
+            top_notebook.add(details_page, text="Details")
+            self._build_details_panel(details_page, window_config.get('details_panel'))
     
     def _build_details_panel(self, parent, panel_config):
         """Build the details notebook panel (legacy tabs)."""
@@ -406,7 +373,7 @@ class CharacterWindowUI:
         
         # Store reference for updates
         if bind_path:
-            self.widgets[bind_path] = portrait_label
+            self._register_widget(bind_path, portrait_label)
             portrait_label._bind_path = bind_path
             portrait_label._current_path = ''  # Initialize empty
             portrait_label._placeholder = placeholder_text
@@ -432,14 +399,17 @@ class CharacterWindowUI:
         label = ttk.Label(stat_frame, text=label_text, font=('TkDefaultFont', 8))
         label.pack()
         
+        # Determine if this should be read-only (derived stats or base bonuses)
+        is_readonly = bind_path and (bind_path.startswith('$.derived_stats') or bind_path.startswith('$.base_bonuses'))
+        
         # Value entry below (larger)
         value_entry = ttk.Entry(stat_frame, width=6, font=('TkDefaultFont', 10, 'bold'),
-                               justify='center')
+                               justify='center', state='readonly' if is_readonly else 'normal')
         value_entry.pack()
         
         # Register widget for data binding
         if bind_path:
-            self.widgets[bind_path] = value_entry
+            self._register_widget(bind_path, value_entry)
     
     def _create_menu_bar(self):
         """Create menu bar from spec."""
@@ -668,6 +638,9 @@ class CharacterWindowUI:
         widget_type = config.get('widget', 'entry')
         hint = config.get('hint', '')
         
+        # Determine if this should be read-only (derived stats or base bonuses)
+        is_derived = bind_path and (bind_path.startswith('$.derived_stats') or bind_path.startswith('$.base_bonuses'))
+        
         # Create label
         label = ttk.Label(parent, text=label_text)
         label.grid(row=row, column=col, sticky='w', padx=5, pady=2)
@@ -679,30 +652,40 @@ class CharacterWindowUI:
         widget = None
         
         if widget_type == 'entry':
-            widget = ttk.Entry(input_frame)
+            # Make derived/base stats readonly
+            state = 'readonly' if is_derived else 'normal'
+            widget = ttk.Entry(input_frame, state=state)
             widget.pack(fill=tk.X, expand=True)
         elif widget_type == 'textarea':
             height = config.get('height', 4)
-            widget = scrolledtext.ScrolledText(input_frame, height=height, wrap=tk.WORD)
+            # Make derived/base stats readonly
+            state = 'disabled' if is_derived else 'normal'
+            widget = scrolledtext.ScrolledText(input_frame, height=height, wrap=tk.WORD, state=state)
             widget.pack(fill=tk.BOTH, expand=True)
         elif widget_type == 'spin_int':
             min_val = config.get('min', 0)
             max_val = config.get('max', 999999)
-            widget = ttk.Spinbox(input_frame, from_=min_val, to=max_val)
+            # Make derived/base stats readonly
+            state = 'readonly' if is_derived else 'normal'
+            widget = ttk.Spinbox(input_frame, from_=min_val, to=max_val, state=state)
             widget.pack(fill=tk.X, expand=True)
         elif widget_type == 'check':
             var = tk.BooleanVar()
-            widget = ttk.Checkbutton(input_frame, variable=var)
+            # Make derived/base stats disabled
+            state = 'disabled' if is_derived else 'normal'
+            widget = ttk.Checkbutton(input_frame, variable=var, state=state)
             widget.var = var
             widget.pack(anchor=tk.W)
         elif widget_type == 'tags':
             # Tags widget (comma-separated list)
-            widget = ttk.Entry(input_frame)
+            state = 'readonly' if is_derived else 'normal'
+            widget = ttk.Entry(input_frame, state=state)
             widget.pack(fill=tk.X, expand=True)
             widget._is_tags = True
         elif widget_type == 'int_list_csv':
             # Integer list CSV
-            widget = ttk.Entry(input_frame)
+            state = 'readonly' if is_derived else 'normal'
+            widget = ttk.Entry(input_frame, state=state)
             widget.pack(fill=tk.X, expand=True)
             widget._is_int_list_csv = True
         elif widget_type == 'readonly_entry':
@@ -714,7 +697,7 @@ class CharacterWindowUI:
             widget.pack(fill=tk.X, expand=True)
         
         if widget and bind_path:
-            self.widgets[bind_path] = widget
+            self._register_widget(bind_path, widget)
         
         # Add hint if provided
         if hint:
@@ -756,7 +739,7 @@ class CharacterWindowUI:
         if bind_path:
             tree._table_config = config
             tree._column_ids = column_ids
-            self.widgets[bind_path] = tree
+            self._register_widget(bind_path, tree)
         
         # Add buttons for row editing
         row_editor = config.get('row_editor', {})
@@ -803,7 +786,8 @@ class CharacterWindowUI:
             data_frame._table_inline_config = config
             data_frame._columns_config = columns_config
             data_frame._mode = mode
-            self.widgets[bind_path] = data_frame
+            data_frame._bind_path = bind_path  # Store bind path for event binding
+            self._register_widget(bind_path, data_frame)
     
     def _create_group_widget(self, parent, config, row, col, colspan):
         """Create a group widget (nested fields)."""
@@ -840,7 +824,7 @@ class CharacterWindowUI:
         if bind_path:
             image_label._max_size = max_size
             image_label._placeholder = placeholder_text
-            self.widgets[bind_path] = image_label
+            self._register_widget(bind_path, image_label)
     
     def _create_label_widget(self, parent, config, row, col, colspan):
         """Create a label widget."""
@@ -859,7 +843,7 @@ class CharacterWindowUI:
         
         # Register widget for data binding
         if bind_path:
-            self.widgets[bind_path] = preview_text
+            self._register_widget(bind_path, preview_text)
     
     def _create_placeholder_widget(self, parent, config, row, col, colspan):
         """Create a placeholder for unsupported widgets."""
@@ -893,7 +877,7 @@ class CharacterWindowUI:
         if bind_path:
             image_label._max_size = max_size
             image_label._placeholder = placeholder_text
-            self.widgets[bind_path] = image_label
+            self._register_widget(bind_path, image_label)
     
     def _create_button_widget_pack(self, parent, config):
         """Create button widget with pack layout."""
@@ -922,14 +906,17 @@ class CharacterWindowUI:
         label = ttk.Label(stat_frame, text=label_text, font=('TkDefaultFont', 8))
         label.pack()
         
+        # Determine if this should be read-only (derived stats or base bonuses)
+        is_readonly = bind_path and (bind_path.startswith('$.derived_stats') or bind_path.startswith('$.base_bonuses'))
+        
         # Value entry below (larger)
         value_entry = ttk.Entry(stat_frame, width=6, font=('TkDefaultFont', 10, 'bold'),
-                               justify='center')
+                               justify='center', state='readonly' if is_readonly else 'normal')
         value_entry.pack()
         
         # Register widget for data binding
         if bind_path:
-            self.widgets[bind_path] = value_entry
+            self._register_widget(bind_path, value_entry)
     
     def _handle_command(self, command_name: str):
         """Handle menu/button commands."""
@@ -965,13 +952,36 @@ class CharacterWindowUI:
             logger.error(f"Error handling command {command_name}: {e}", exc_info=True)
             messagebox.showerror("Error", f"Failed to execute command: {e}")
     
+    def _register_widget(self, bind_path: str, widget):
+        """Register a widget for a bind path, allowing multiple widgets per path."""
+        if not bind_path:
+            return
+        
+        if bind_path not in self.widgets:
+            self.widgets[bind_path] = []
+        self.widgets[bind_path].append(widget)
+    
     def get_state(self) -> Dict:
         """Extract current UI state into a dictionary."""
         state = {}
         
-        for bind_path, widget in self.widgets.items():
+        for bind_path, widget_list in self.widgets.items():
             try:
-                value = self._get_widget_value(widget)
+                # For multiple widgets bound to the same path, use the first non-empty value
+                value = None
+                found_non_empty = False
+                for widget in widget_list:
+                    widget_value = self._get_widget_value(widget)
+                    # Use first non-empty value (but allow 0 as valid)
+                    if widget_value not in [None, '', []]:
+                        value = widget_value
+                        found_non_empty = True
+                        break
+                
+                # If all values were empty, use the last one
+                if not found_non_empty and widget_list:
+                    value = self._get_widget_value(widget_list[-1])
+                
                 self._set_nested_value(state, bind_path, value)
             except Exception as e:
                 logger.error(f"Failed to extract value from widget at {bind_path}: {e}")
@@ -1027,9 +1037,105 @@ class CharacterWindowUI:
     
     def _get_inline_table_values(self, frame):
         """Get values from an inline table widget."""
-        # This is complex - would need to iterate through child widgets
-        # For now, return empty or existing data
+        config = frame._table_inline_config
+        columns_config = frame._columns_config
+        mode = frame._mode
+        
+        if mode == 'keyed_object':
+            # Fixed rows based on spec - return dict
+            result = {}
+            rows_config = config.get('rows', [])
+            
+            for child in frame.winfo_children():
+                if hasattr(child, '_inline_key') and hasattr(child, '_inline_col'):
+                    key = child._inline_key
+                    col_key = child._inline_col
+                    
+                    # Initialize row dict if needed
+                    if key not in result:
+                        result[key] = {}
+                    
+                    # Get value from widget
+                    if isinstance(child, ttk.Checkbutton):
+                        result[key][col_key] = child.var.get()
+                    elif isinstance(child, ttk.Entry):
+                        val = child.get()
+                        # Try to convert to int if possible
+                        try:
+                            result[key][col_key] = int(val) if val else 0
+                        except (ValueError, TypeError):
+                            result[key][col_key] = val
+            
+            return result
+        
+        elif isinstance(config.get('rows'), list) or mode == 'list':
+            # List mode - return list of dicts
+            result = []
+            row_data = {}
+            current_row = -1
+            
+            for child in frame.winfo_children():
+                # Get grid info to determine row
+                info = child.grid_info()
+                row = info.get('row', 0)
+                
+                if row != current_row and row_data:
+                    # New row started, save previous row
+                    result.append(row_data)
+                    row_data = {}
+                
+                current_row = row
+                
+                # Get column key from widget
+                col_idx = info.get('column', 0)
+                if col_idx < len(columns_config):
+                    col_key = columns_config[col_idx].get('key', '')
+                    
+                    # Get value from widget
+                    if isinstance(child, ttk.Checkbutton):
+                        row_data[col_key] = child.var.get()
+                    elif isinstance(child, ttk.Entry):
+                        val = child.get()
+                        # Try to convert to int if possible
+                        try:
+                            row_data[col_key] = int(val) if val else 0
+                        except (ValueError, TypeError):
+                            row_data[col_key] = val
+            
+            # Don't forget last row
+            if row_data:
+                result.append(row_data)
+            
+            return result
+        
+        # Fallback - return empty
         return []
+    
+    def _recompute_derived_stats(self, event=None):
+        """
+        Recompute derived stats based on current UI state.
+        Called when characteristic scores are edited.
+        Uses debouncing to avoid multiple rapid recomputations.
+        """
+        # Cancel any pending recompute
+        if self._recompute_scheduled is not None:
+            self.root.after_cancel(self._recompute_scheduled)
+        
+        # Schedule recompute after 300ms delay
+        def do_recompute():
+            try:
+                # Get current state from UI
+                current_state = self.get_state()
+                
+                # Reapply state with derived stats computation
+                # This will trigger apply_derived_stats and update readonly fields
+                self.set_state(current_state)
+            except Exception as e:
+                logger.error(f"Failed to recompute derived stats: {e}")
+            finally:
+                self._recompute_scheduled = None
+        
+        self._recompute_scheduled = self.root.after(300, do_recompute)
     
     def set_state(self, state: Dict):
         """
@@ -1045,12 +1151,14 @@ class CharacterWindowUI:
         # This ensures bonuses and derived values are always current
         state = apply_derived_stats(state)
         
-        # Apply state to widgets
-        for bind_path, widget in self.widgets.items():
+        # Apply state to all widgets (handles multiple widgets per bind path)
+        for bind_path, widget_list in self.widgets.items():
             try:
                 value = self._get_nested_value(state, bind_path)
                 if value is not None:
-                    self._set_widget_value(widget, value)
+                    # Update all widgets bound to this path
+                    for widget in widget_list:
+                        self._set_widget_value(widget, value)
             except Exception as e:
                 logger.warning(f"Failed to set widget value at {bind_path}: {e}")
     
@@ -1203,6 +1311,10 @@ class CharacterWindowUI:
                         
                         if column.get('readonly'):
                             widget.config(state='readonly')
+                        # Bind FocusOut to recompute derived stats for characteristics table
+                        # This triggers when user edits characteristic scores
+                        elif hasattr(frame, '_bind_path') and frame._bind_path == '$.characteristics' and col_key == 'score':
+                            widget.bind('<FocusOut>', self._recompute_derived_stats)
                     
                     widget.grid(row=row_idx, column=col_idx, padx=2, pady=1)
                     
@@ -1483,15 +1595,16 @@ class CharacterWindowUI:
             # Store the full path
             portrait_path_str = filename
             
-            # Update the portrait field
+            # Update the portrait field(s) - now handles multiple widgets per bind path
             portrait_bind = "$.portrait.file"
             if portrait_bind in self.widgets:
-                portrait_widget = self.widgets[portrait_bind]
-                # Load and display the image
-                self._load_portrait_image(portrait_widget, portrait_path_str)
-                # Also update the text value for state management
-                if hasattr(portrait_widget, '_current_path'):
-                    portrait_widget._current_path = portrait_path_str
+                portrait_widgets = self.widgets[portrait_bind]
+                for portrait_widget in portrait_widgets:
+                    # Load and display the image
+                    self._load_portrait_image(portrait_widget, portrait_path_str)
+                    # Also update the text value for state management
+                    if hasattr(portrait_widget, '_current_path'):
+                        portrait_widget._current_path = portrait_path_str
             
             self.status_var.set(f"Portrait selected: {Path(filename).name}")
         except Exception as e:
