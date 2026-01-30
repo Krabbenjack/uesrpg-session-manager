@@ -574,6 +574,7 @@ class CharacterWindowUI:
             
             row = 0
             col = 0
+            max_rows_in_current_row = 1  # Track the tallest widget in current row
             
             for widget_config in widgets:
                 try:
@@ -604,19 +605,25 @@ class CharacterWindowUI:
                         logger.warning(f"Unsupported widget type: {widget_type}")
                         rows_consumed = self._create_placeholder_widget(parent, widget_config, row, col, colspan)
                     
+                    # Track the maximum rows consumed in this row
+                    max_rows_in_current_row = max(max_rows_in_current_row, rows_consumed)
+                    
                     # Update position
                     col += colspan
                     if isinstance(columns, int) and col >= columns:
                         col = 0
-                        row += rows_consumed
+                        row += max_rows_in_current_row  # Advance by tallest widget in the row
+                        max_rows_in_current_row = 1  # Reset for next row
                 except Exception as e:
                     logger.error(f"Failed to create widget: {e}", exc_info=True)
                     # Create placeholder on error
                     rows_consumed = self._create_placeholder_widget(parent, widget_config, row, col, 1)
+                    max_rows_in_current_row = max(max_rows_in_current_row, rows_consumed)
                     col += 1
                     if isinstance(columns, int) and col >= columns:
                         col = 0
-                        row += rows_consumed
+                        row += max_rows_in_current_row  # Advance by tallest widget in the row
+                        max_rows_in_current_row = 1  # Reset for next row
         else:
             # Pack layout
             for widget_config in widgets:
