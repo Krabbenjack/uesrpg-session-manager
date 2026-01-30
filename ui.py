@@ -580,41 +580,43 @@ class CharacterWindowUI:
                     widget_type = widget_config.get('type', 'field')
                     colspan = widget_config.get('colspan', 1)
                     
+                    # Create widget and get rows consumed
+                    rows_consumed = 1  # default
                     if widget_type == 'field':
-                        self._create_field_widget(parent, widget_config, row, col, colspan)
+                        rows_consumed = self._create_field_widget(parent, widget_config, row, col, colspan)
                     elif widget_type == 'table':
-                        self._create_table_widget(parent, widget_config, row, col, colspan)
+                        rows_consumed = self._create_table_widget(parent, widget_config, row, col, colspan)
                     elif widget_type == 'table_inline':
-                        self._create_table_inline_widget(parent, widget_config, row, col, colspan)
+                        rows_consumed = self._create_table_inline_widget(parent, widget_config, row, col, colspan)
                     elif widget_type == 'group':
-                        self._create_group_widget(parent, widget_config, row, col, colspan)
+                        rows_consumed = self._create_group_widget(parent, widget_config, row, col, colspan)
                     elif widget_type == 'button':
-                        self._create_button_widget(parent, widget_config, row, col, colspan)
+                        rows_consumed = self._create_button_widget(parent, widget_config, row, col, colspan)
                     elif widget_type == 'image':
-                        self._create_image_widget(parent, widget_config, row, col, colspan)
+                        rows_consumed = self._create_image_widget(parent, widget_config, row, col, colspan)
                     elif widget_type == 'label':
-                        self._create_label_widget(parent, widget_config, row, col, colspan)
+                        rows_consumed = self._create_label_widget(parent, widget_config, row, col, colspan)
                     elif widget_type == 'stat_block':
-                        self._create_stat_block_widget(parent, widget_config, row, col, colspan)
+                        rows_consumed = self._create_stat_block_widget(parent, widget_config, row, col, colspan)
                     elif widget_type == 'preview':
-                        self._create_preview_widget(parent, widget_config, row, col, colspan)
+                        rows_consumed = self._create_preview_widget(parent, widget_config, row, col, colspan)
                     else:
                         logger.warning(f"Unsupported widget type: {widget_type}")
-                        self._create_placeholder_widget(parent, widget_config, row, col, colspan)
+                        rows_consumed = self._create_placeholder_widget(parent, widget_config, row, col, colspan)
                     
                     # Update position
                     col += colspan
                     if isinstance(columns, int) and col >= columns:
                         col = 0
-                        row += 1
+                        row += rows_consumed
                 except Exception as e:
                     logger.error(f"Failed to create widget: {e}", exc_info=True)
                     # Create placeholder on error
-                    self._create_placeholder_widget(parent, widget_config, row, col, 1)
+                    rows_consumed = self._create_placeholder_widget(parent, widget_config, row, col, 1)
                     col += 1
                     if isinstance(columns, int) and col >= columns:
                         col = 0
-                        row += 1
+                        row += rows_consumed
         else:
             # Pack layout
             for widget_config in widgets:
@@ -632,7 +634,11 @@ class CharacterWindowUI:
                     logger.error(f"Failed to create widget: {e}", exc_info=True)
     
     def _create_field_widget(self, parent, config, row, col, colspan):
-        """Create a field widget (label + input)."""
+        """Create a field widget (label + input).
+        
+        Returns:
+            int: Number of rows consumed (2: label row + input row)
+        """
         label_text = config.get('label', '')
         bind_path = config.get('bind', '')
         widget_type = config.get('widget', 'entry')
@@ -703,9 +709,15 @@ class CharacterWindowUI:
         if hint:
             hint_label = ttk.Label(input_frame, text=hint, font=('TkDefaultFont', 8))
             hint_label.pack(anchor=tk.W)
+        
+        return 2  # Field widget consumes 2 rows (label + input)
     
     def _create_table_widget(self, parent, config, row, col, colspan):
-        """Create a table widget for list editing."""
+        """Create a table widget for list editing.
+        
+        Returns:
+            int: Number of rows consumed (3)
+        """
         title = config.get('title', '')
         bind_path = config.get('bind', '')
         
@@ -754,9 +766,15 @@ class CharacterWindowUI:
                 ttk.Button(button_frame, text="Edit", command=lambda: self._table_edit_row(tree, config)).pack(side=tk.LEFT, padx=2)
             if 'delete' in buttons:
                 ttk.Button(button_frame, text="Delete", command=lambda: self._table_delete_row(tree)).pack(side=tk.LEFT, padx=2)
+        
+        return 3  # Table widget consumes 3 rows
     
     def _create_table_inline_widget(self, parent, config, row, col, colspan):
-        """Create an inline table widget (fixed rows, editable cells)."""
+        """Create an inline table widget (fixed rows, editable cells).
+        
+        Returns:
+            int: Number of rows consumed (2)
+        """
         bind_path = config.get('bind', '')
         columns_config = config.get('columns', [])
         mode = config.get('mode', 'list')
@@ -788,9 +806,15 @@ class CharacterWindowUI:
             data_frame._mode = mode
             data_frame._bind_path = bind_path  # Store bind path for event binding
             self._register_widget(bind_path, data_frame)
+        
+        return 2  # Table inline widget consumes 2 rows
     
     def _create_group_widget(self, parent, config, row, col, colspan):
-        """Create a group widget (nested fields)."""
+        """Create a group widget (nested fields).
+        
+        Returns:
+            int: Number of rows consumed (2)
+        """
         title = config.get('title', '')
         group_frame = ttk.LabelFrame(parent, text=title)
         group_frame.grid(row=row, column=col, columnspan=colspan, rowspan=2, sticky='nsew', padx=5, pady=5)
@@ -799,17 +823,29 @@ class CharacterWindowUI:
         layout = config.get('layout', {})
         
         self._build_widgets_with_layout(group_frame, widgets, layout)
+        
+        return 2  # Group widget consumes 2 rows
     
     def _create_button_widget(self, parent, config, row, col, colspan):
-        """Create a button widget."""
+        """Create a button widget.
+        
+        Returns:
+            int: Number of rows consumed (1)
+        """
         text = config.get('text', 'Button')
         command_name = config.get('command', '')
         
         button = ttk.Button(parent, text=text, command=lambda: self._handle_command(command_name))
         button.grid(row=row, column=col, columnspan=colspan, sticky='ew', padx=5, pady=5)
+        
+        return 1  # Button widget consumes 1 row
     
     def _create_image_widget(self, parent, config, row, col, colspan):
-        """Create an image widget (portrait)."""
+        """Create an image widget (portrait).
+        
+        Returns:
+            int: Number of rows consumed (1)
+        """
         bind_path = config.get('bind', '')
         placeholder_text = config.get('placeholder', 'No image')
         max_size = config.get('max_size', [200, 240])
@@ -825,15 +861,27 @@ class CharacterWindowUI:
             image_label._max_size = max_size
             image_label._placeholder = placeholder_text
             self._register_widget(bind_path, image_label)
+        
+        return 1  # Image widget consumes 1 row
     
     def _create_label_widget(self, parent, config, row, col, colspan):
-        """Create a label widget."""
+        """Create a label widget.
+        
+        Returns:
+            int: Number of rows consumed (1)
+        """
         text = config.get('text', '')
         label = ttk.Label(parent, text=text, wraplength=200)
         label.grid(row=row, column=col, columnspan=colspan, sticky='w', padx=5, pady=2)
+        
+        return 1  # Label widget consumes 1 row
     
     def _create_preview_widget(self, parent, config, row, col, colspan):
-        """Create a preview widget (read-only text area for displaying data)."""
+        """Create a preview widget (read-only text area for displaying data).
+        
+        Returns:
+            int: Number of rows consumed (1)
+        """
         bind_path = config.get('bind', '')
         height = config.get('height', 10)
         
@@ -844,14 +892,22 @@ class CharacterWindowUI:
         # Register widget for data binding
         if bind_path:
             self._register_widget(bind_path, preview_text)
+        
+        return 1  # Preview widget consumes 1 row
     
     def _create_placeholder_widget(self, parent, config, row, col, colspan):
-        """Create a placeholder for unsupported widgets."""
+        """Create a placeholder for unsupported widgets.
+        
+        Returns:
+            int: Number of rows consumed (1)
+        """
         label_text = config.get('label', 'Unsupported')
         widget_type = config.get('type', 'unknown')
         
         label = ttk.Label(parent, text=f"{label_text} [{widget_type}]", foreground='gray')
         label.grid(row=row, column=col, columnspan=colspan, sticky='w', padx=5, pady=2)
+        
+        return 1  # Placeholder widget consumes 1 row
     
     def _build_panel_widgets(self, parent, widgets):
         """Build widgets for a panel (left panel)."""
@@ -894,7 +950,11 @@ class CharacterWindowUI:
         label.pack(padx=5, pady=5, anchor=tk.W)
     
     def _create_stat_block_widget(self, parent, config, row, col, colspan):
-        """Create a stat block widget for grid layout (large value + small label)."""
+        """Create a stat block widget for grid layout (large value + small label).
+        
+        Returns:
+            int: Number of rows consumed (1)
+        """
         label_text = config.get('label', '')
         bind_path = config.get('bind', '')
         
@@ -902,9 +962,14 @@ class CharacterWindowUI:
         stat_frame = ttk.Frame(parent)
         stat_frame.grid(row=row, column=col, columnspan=colspan, sticky='nsew', padx=5, pady=2)
         
+        # Configure stat_frame to use grid layout internally
+        stat_frame.columnconfigure(0, weight=1)
+        stat_frame.rowconfigure(0, weight=0)
+        stat_frame.rowconfigure(1, weight=0)
+        
         # Label on top (small)
         label = ttk.Label(stat_frame, text=label_text, font=('TkDefaultFont', 8))
-        label.pack()
+        label.grid(row=0, column=0, sticky='n')
         
         # Determine if this should be read-only (derived stats or base bonuses)
         is_readonly = bind_path and (bind_path.startswith('$.derived_stats') or bind_path.startswith('$.base_bonuses'))
@@ -912,11 +977,13 @@ class CharacterWindowUI:
         # Value entry below (larger)
         value_entry = ttk.Entry(stat_frame, width=6, font=('TkDefaultFont', 10, 'bold'),
                                justify='center', state='readonly' if is_readonly else 'normal')
-        value_entry.pack()
+        value_entry.grid(row=1, column=0, sticky='n')
         
         # Register widget for data binding
         if bind_path:
             self._register_widget(bind_path, value_entry)
+        
+        return 1  # Stat block widget consumes 1 row
     
     def _handle_command(self, command_name: str):
         """Handle menu/button commands."""
