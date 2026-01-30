@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "derived_stats": [
+    {
+      "key": "HP",
+      "name": "Health Points",
+      "type": "pool",
+      "max_formula": { "op": "ceil_div", "args": [ { "path": "$.characteristics[abbr=End].score" }, 2 ] }
+    },
+    {
+      "key": "SP",
+      "name": "Stamina Points",
+      "type": "pool",
+      "max_formula": { "path": "$.base_bonuses.EB" }
+    },
+    {
+      "key": "MP",
+      "name": "Magicka Points",
+      "type": "pool",
+      "max_formula": { "path": "$.characteristics[abbr=Int].score" }
+    },
+    {
+      "key": "Linguistics",
+      "name": "Linguistics",
+      "type": "scalar",
+      "formula": { "op": "ceil_div", "args": [ { "path": "$.base_bonuses.IB" }, 2 ] }
+    },
+    {
+      "key": "IR",
+      "name": "Initiative Rating",
+      "type": "scalar",
+      "formula": { "op": "add", "args": [ { "path": "$.base_bonuses.AB" }, { "path": "$.base_bonuses.IB" }, { "path": "$.base_bonuses.PcB" } ] }
+    },
+    {
+      "key": "Speed_m",
+      "name": "Speed (meters/round)",
+      "type": "scalar",
+      "formula": { "op": "add", "args": [ { "path": "$.base_bonuses.SB" }, { "op": "mul", "args": [2, { "path": "$.base_bonuses.AB" } ] } ] }
+    },
+    {
+      "key": "CR",
+      "name": "Carry Rating",
+      "type": "scalar",
+      "formula": { "op": "add", "args": [ { "op": "mul", "args": [4, { "path": "$.base_bonuses.SB" } ] }, { "op": "mul", "args": [2, { "path": "$.base_bonuses.EB" } ] } ] }
+    },
+    {
+      "key": "AP",
+      "name": "Action Points",
+      "type": "pool",
+      "max_formula": { "const": 3 }
+    },
+    {
+      "key": "LP",
+      "name": "Luck Points",
+      "type": "pool",
+      "max_formula": { "path": "$.base_bonuses.LB" }
+    }
+  ]
+}

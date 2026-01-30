@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "characteristics": [
+    { "key": "Str", "name": "Strength",     "bonus_key": "SB",  "description": "Physical prowess." },
+    { "key": "End", "name": "Endurance",    "bonus_key": "EB",  "description": "Health, stamina, toughness." },
+    { "key": "Ag",  "name": "Agility",      "bonus_key": "AB",  "description": "Speed, reflexes, coordination." },
+    { "key": "Int", "name": "Intelligence", "bonus_key": "IB",  "description": "Reasoning, recall, understanding." },
+    { "key": "Wp",  "name": "Willpower",    "bonus_key": "WB",  "description": "Mental control, resilience, magicka shaping." },
+    { "key": "Prc", "name": "Perception",   "bonus_key": "PcB", "description": "Awareness, intuition." },
+    { "key": "Prs", "name": "Personality",  "bonus_key": "PsB", "description": "Charisma, presence, social ability." },
+    { "key": "Lck", "name": "Luck",         "bonus_key": "LB",  "description": "Good fortune." }
+  ],
+  "rules": {
+    "bonus_from_score": { "method": "tens_digit" }
+  }
+}
