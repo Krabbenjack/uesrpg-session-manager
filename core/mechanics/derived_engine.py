@@ -66,7 +66,7 @@ class DerivedStatsEngine:
         """
         Find repository root by walking up from this file's location.
         
-        Looks for a directory that has a 'config' subdirectory as sibling.
+        Looks for a directory that has a 'config' subdirectory.
         
         Returns:
             Path: Repository root directory
@@ -76,12 +76,13 @@ class DerivedStatsEngine:
         
         # Walk up the directory tree
         while current != current.parent:
-            # Check if 'config' directory exists as a sibling or child
+            # Check if 'config' directory exists as a child
             if (current / "config").is_dir():
                 return current
             current = current.parent
         
         # Fallback: return parent of parent (assuming core/mechanics structure)
+        logger.warning("Could not find repo root with config directory, using fallback path calculation")
         return Path(__file__).resolve().parent.parent.parent
     
     def _load_rules(self):

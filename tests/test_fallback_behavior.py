@@ -4,9 +4,9 @@ Test fallback behavior when config file is missing.
 """
 
 import sys
-import os
 import tempfile
 import shutil
+import time
 from pathlib import Path
 
 # Add parent directory to path
@@ -19,10 +19,11 @@ def test_fallback_behavior():
     print("TEST: Fallback Behavior When Config is Missing")
     print("=" * 60)
     
-    # Temporarily rename the config file
+    # Temporarily rename the config file with unique identifier
     repo_root = Path(__file__).parent.parent
     config_file = repo_root / "config" / "attributes_derived.json"
-    backup_file = repo_root / "config" / "attributes_derived.json.test_backup"
+    # Use timestamp to avoid conflicts with concurrent tests
+    backup_file = repo_root / "config" / f"attributes_derived.json.test_backup_{int(time.time() * 1000)}"
     
     if not config_file.exists():
         print("✗ Config file doesn't exist - cannot test fallback")
