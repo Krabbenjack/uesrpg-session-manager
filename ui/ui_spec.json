@@ -181,7 +181,7 @@
                   "columns": [
                     { "key": "abbr", "label": "Abbr", "width": 6, "readonly": true },
                     { "key": "score", "label": "Score", "width": 6 },
-                    { "key": "bonus", "label": "Bonus", "width": 6 },
+                    { "key": "bonus", "label": "Bonus", "width": 6, "readonly": true },
                     { "key": "favored", "label": "Fav", "width": 4, "widget": "check" }
                   ],
                   "row_order": ["Str", "End", "Ag", "Int", "Wp", "Prc", "Prs", "Lck"],
