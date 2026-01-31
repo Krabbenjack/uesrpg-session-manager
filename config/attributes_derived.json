@@ -1,59 +1,150 @@
 {
-  "version": 1,
-  "derived_stats": [
-    {
-      "key": "HP",
-      "name": "Health Points",
-      "type": "pool",
-      "max_formula": { "op": "ceil_div", "args": [ { "path": "$.characteristics[abbr=End].score" }, 2 ] }
-    },
-    {
-      "key": "SP",
-      "name": "Stamina Points",
-      "type": "pool",
-      "max_formula": { "path": "$.base_bonuses.EB" }
-    },
-    {
-      "key": "MP",
-      "name": "Magicka Points",
-      "type": "pool",
-      "max_formula": { "path": "$.characteristics[abbr=Int].score" }
-    },
-    {
-      "key": "Linguistics",
-      "name": "Linguistics",
-      "type": "scalar",
-      "formula": { "op": "ceil_div", "args": [ { "path": "$.base_bonuses.IB" }, 2 ] }
-    },
-    {
-      "key": "IR",
-      "name": "Initiative Rating",
-      "type": "scalar",
-      "formula": { "op": "add", "args": [ { "path": "$.base_bonuses.AB" }, { "path": "$.base_bonuses.IB" }, { "path": "$.base_bonuses.PcB" } ] }
-    },
-    {
-      "key": "Speed_m",
-      "name": "Speed (meters/round)",
-      "type": "scalar",
-      "formula": { "op": "add", "args": [ { "path": "$.base_bonuses.SB" }, { "op": "mul", "args": [2, { "path": "$.base_bonuses.AB" } ] } ] }
-    },
-    {
-      "key": "CR",
-      "name": "Carry Rating",
-      "type": "scalar",
-      "formula": { "op": "add", "args": [ { "op": "mul", "args": [4, { "path": "$.base_bonuses.SB" } ] }, { "op": "mul", "args": [2, { "path": "$.base_bonuses.EB" } ] } ] }
-    },
-    {
-      "key": "AP",
-      "name": "Action Points",
-      "type": "pool",
-      "max_formula": { "const": 3 }
-    },
-    {
-      "key": "LP",
-      "name": "Luck Points",
-      "type": "pool",
-      "max_formula": { "path": "$.base_bonuses.LB" }
+  "version": "1.0",
+  "engine": "uesrpg-derived-v1",
+  "notes": [
+    "This ruleset computes sheet-derived values from character inputs.",
+    "Designed for use during import and during UI refresh after edits.",
+    "Do not overwrite *.current pools unless explicitly requested."
+  ],
+
+  "sources": {
+    "characteristics_list_path": "$.characteristics",
+    "characteristic_score_key": "score",
+    "characteristic_bonus_key": "bonus",
+    "characteristic_abbr_key": "abbr",
+
+    "abbr_to_bonus_output_path": {
+      "Str": "$.base_bonuses.SB",
+      "End": "$.base_bonuses.EB",
+      "Ag": "$.base_bonuses.AB",
+      "Int": "$.base_bonuses.IB",
+      "Wp": "$.base_bonuses.WB",
+      "Prc": "$.base_bonuses.PcB",
+      "Prs": "$.base_bonuses.PsB",
+      "Lck": "$.base_bonuses.LB"
     }
-  ]
+  },
+
+  "operations": [
+    {
+      "id": "compute_characteristic_bonuses",
+      "type": "for_each_in_list",
+      "list_path": "$.characteristics",
+      "where": { "key": "abbr", "in": ["Str","End","Ag","Int","Wp","Prc","Prs","Lck"] },
+      "set": [
+        {
+          "path_template": "$.characteristics[{index}].bonus",
+          "expr": { "op": "tens_digit", "arg": { "path_template": "$.characteristics[{index}].score" } }
+        }
+      ]
+    },
+
+    {
+      "id": "map_characteristic_bonuses_to_base_bonuses",
+      "type": "set_many",
+      "set": [
+        { "path": "$.base_bonuses.SB",  "expr": { "op": "char_bonus_by_abbr", "abbr": "Str" } },
+        { "path": "$.base_bonuses.EB",  "expr": { "op": "char_bonus_by_abbr", "abbr": "End" } },
+        { "path": "$.base_bonuses.AB",  "expr": { "op": "char_bonus_by_abbr", "abbr": "Ag"  } },
+        { "path": "$.base_bonuses.IB",  "expr": { "op": "char_bonus_by_abbr", "abbr": "Int" } },
+        { "path": "$.base_bonuses.WB",  "expr": { "op": "char_bonus_by_abbr", "abbr": "Wp"  } },
+        { "path": "$.base_bonuses.PcB", "expr": { "op": "char_bonus_by_abbr", "abbr": "Prc" } },
+        { "path": "$.base_bonuses.PsB", "expr": { "op": "char_bonus_by_abbr", "abbr": "Prs" } },
+        { "path": "$.base_bonuses.LB",  "expr": { "op": "char_bonus_by_abbr", "abbr": "Lck" } }
+      ]
+    },
+
+    {
+      "id": "compute_derived_max_and_stats",
+      "type": "set_many",
+      "policy": {
+        "overwrite": true,
+        "do_not_overwrite_paths_matching": [
+          "$.derived_stats.HP.current",
+          "$.derived_stats.MP.current",
+          "$.derived_stats.WT.current",
+          "$.derived_stats.SP.current",
+          "$.derived_stats.LP.current",
+          "$.derived_stats.AP.current",
+          "$.derived_stats.ENC.current"
+        ]
+      },
+      "set": [
+        {
+          "path": "$.derived_stats.HP.max",
+          "expr": { "op": "ceil_div", "a": { "op": "char_score_by_abbr", "abbr": "End" }, "b": 2 }
+        },
+        {
+          "path": "$.derived_stats.SP.max",
+          "expr": { "op": "get_path", "path": "$.base_bonuses.EB" }
+        },
+        {
+          "path": "$.derived_stats.MP.max",
+          "expr": { "op": "char_score_by_abbr", "abbr": "Int" }
+        },
+
+        {
+          "path": "$.derived_stats.Linguistics",
+          "expr": { "op": "ceil_div", "a": { "op": "get_path", "path": "$.base_bonuses.IB" }, "b": 2 }
+        },
+
+        {
+          "path": "$.derived_stats.IR",
+          "expr": {
+            "op": "add",
+            "args": [
+              { "op": "get_path", "path": "$.base_bonuses.AB" },
+              { "op": "get_path", "path": "$.base_bonuses.IB" },
+              { "op": "get_path", "path": "$.base_bonuses.PcB" }
+            ]
+          }
+        },
+        {
+          "path": "$.derived_stats.Speed_m",
+          "expr": {
+            "op": "add",
+            "args": [
+              { "op": "get_path", "path": "$.base_bonuses.SB" },
+              { "op": "mul", "a": 2, "b": { "op": "get_path", "path": "$.base_bonuses.AB" } }
+            ]
+          }
+        },
+        {
+          "path": "$.derived_stats.CR",
+          "expr": {
+            "op": "add",
+            "args": [
+              { "op": "mul", "a": 4, "b": { "op": "get_path", "path": "$.base_bonuses.SB" } },
+              { "op": "mul", "a": 2, "b": { "op": "get_path", "path": "$.base_bonuses.EB" } }
+            ]
+          }
+        },
+
+        { "path": "$.derived_stats.AP.max", "expr": 3 },
+        { "path": "$.derived_stats.LP.max", "expr": { "op": "get_path", "path": "$.base_bonuses.LB" } }
+      ]
+    },
+
+    {
+      "id": "encumbrance_defaults_and_limits",
+      "type": "set_many",
+      "policy": { "overwrite": true, "do_not_overwrite_paths_matching": ["$.derived_stats.ENC.current"] },
+      "set": [
+        {
+          "path": "$.derived_stats.ENC.max",
+          "expr": { "op": "get_path", "path": "$.derived_stats.CR" }
+        }
+      ]
+    }
+  ],
+
+  "expr_ops": {
+    "tens_digit": "floor(x / 10)",
+    "ceil_div": "ceil(a / b)",
+    "char_score_by_abbr": "lookup in $.characteristics where abbr==X; return score",
+    "char_bonus_by_abbr": "lookup in $.characteristics where abbr==X; return bonus",
+    "get_path": "read value at JSONPath",
+    "add": "sum(args)",
+    "mul": "a*b"
+  }
 }
