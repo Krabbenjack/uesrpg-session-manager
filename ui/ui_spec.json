@@ -187,46 +187,6 @@
                   "row_order": ["Str", "End", "Ag", "Int", "Wp", "Prc", "Prs", "Lck"],
                   "style": "base",
                   "colspan": 4
-                },
-                {
-                  "type": "stat_block",
-                  "label": "SB",
-                  "bind": "$.base_bonuses.SB"
-                },
-                {
-                  "type": "stat_block",
-                  "label": "EB",
-                  "bind": "$.base_bonuses.EB"
-                },
-                {
-                  "type": "stat_block",
-                  "label": "AB",
-                  "bind": "$.base_bonuses.AB"
-                },
-                {
-                  "type": "stat_block",
-                  "label": "IB",
-                  "bind": "$.base_bonuses.IB"
-                },
-                {
-                  "type": "stat_block",
-                  "label": "WB",
-                  "bind": "$.base_bonuses.WB"
-                },
-                {
-                  "type": "stat_block",
-                  "label": "PcB",
-                  "bind": "$.base_bonuses.PcB"
-                },
-                {
-                  "type": "stat_block",
-                  "label": "PsB",
-                  "bind": "$.base_bonuses.PsB"
-                },
-                {
-                  "type": "stat_block",
-                  "label": "LB",
-                  "bind": "$.base_bonuses.LB"
                 }
               ]
             },
@@ -235,24 +195,16 @@
               "title": "Derived Stats",
               "layout": { "type": "grid", "columns": 2 },
               "widgets": [
-                { "type": "stat_block", "label": "HP (cur)", "bind": "$.derived_stats.HP.current" },
-                { "type": "stat_block", "label": "HP (max)", "bind": "$.derived_stats.HP.max" },
-                { "type": "stat_block", "label": "MP (cur)", "bind": "$.derived_stats.MP.current" },
-                { "type": "stat_block", "label": "MP (max)", "bind": "$.derived_stats.MP.max" },
-                { "type": "stat_block", "label": "WT (cur)", "bind": "$.derived_stats.WT.current" },
-                { "type": "stat_block", "label": "WT (max)", "bind": "$.derived_stats.WT.max" },
-                { "type": "stat_block", "label": "SP (cur)", "bind": "$.derived_stats.SP.current" },
-                { "type": "stat_block", "label": "SP (max)", "bind": "$.derived_stats.SP.max" },
+                { "type": "stat_block", "label": "HP", "bind": "$.derived_stats.HP.max" },
+                { "type": "stat_block", "label": "Magicka", "bind": "$.derived_stats.MP.max" },
+                { "type": "stat_block", "label": "WT", "bind": "$.derived_stats.WT.max" },
+                { "type": "stat_block", "label": "Stamina", "bind": "$.derived_stats.SP.max" },
                 { "type": "stat_block", "label": "Speed", "bind": "$.derived_stats.Speed_m" },
-                { "type": "stat_block", "label": "LP (cur)", "bind": "$.derived_stats.LP.current" },
-                { "type": "stat_block", "label": "LP (max)", "bind": "$.derived_stats.LP.max" },
-                { "type": "stat_block", "label": "IR", "bind": "$.derived_stats.IR" },
-                { "type": "stat_block", "label": "AP (cur)", "bind": "$.derived_stats.AP.current" },
-                { "type": "stat_block", "label": "AP (max)", "bind": "$.derived_stats.AP.max" },
-                { "type": "stat_block", "label": "Ling.", "bind": "$.derived_stats.Linguistics" },
-                { "type": "stat_block", "label": "ENC", "bind": "$.derived_stats.ENC.current" },
-                { "type": "stat_block", "label": "ENC (max)", "bind": "$.derived_stats.ENC.max" },
-                { "type": "stat_block", "label": "CR", "bind": "$.derived_stats.CR" }
+                { "type": "stat_block", "label": "Luck Points", "bind": "$.derived_stats.LP.max" },
+                { "type": "stat_block", "label": "Initiative", "bind": "$.derived_stats.IR" },
+                { "type": "stat_block", "label": "Action Points", "bind": "$.derived_stats.AP.max" },
+                { "type": "stat_block", "label": "Encumbrance", "bind": "$.derived_stats.ENC.max" },
+                { "type": "stat_block", "label": "Carry Rating", "bind": "$.derived_stats.CR" }
               ]
             },
             {
