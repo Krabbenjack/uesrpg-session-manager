@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "subtypes": {
+    "0100": "Imperial",
+    "0101": "Imperial – Colovian",
+    "0102": "Imperial – Nibenese",
+
+    "0200": "Khajiit",
+    "0201": "Khajiit – Suthay-Raht",
+    "0202": "Khajiit – Alfiq",
+    "0203": "Khajiit – Cathay",
+    "0204": "Khajiit – Ohmes-Raht",
+    "0205": "Khajiit – Ohmes",
+    "0206": "Khajiit – Dagi-Raht",
+    "0207": "Khajiit – Pahmer",
+    "0208": "Khajiit – Senche",
+    "0209": "Khajiit – Tojay",
+
+    "0300": "Altmer",
+
+    "0400": "Argonian",
+
+    "0500": "Bosmer",
+    "0501": "Bosmer – The Unglamoured",
+
+    "0600": "Breton",
+    "0601": "Breton – The Reachmen",
+
+    "0700": "Dunmer – Tribunal",
+    "0701": "Dunmer – Ashlanders",
+
+    "0800": "Nord",
+    "0801": "Nord – The Reachmen",
+
+    "0900": "Orsimer",
+
+    "1000": "Redguard",
+    "1001": "Redguard – Crowns",
+    "1002": "Redguard – Forebears",
+
+    "1100": "Ayleid",
+
+    "1200": "Falmer",
+
+    "1300": "Maormer",
+
+    "1400": "Sload"
+  }
+}
